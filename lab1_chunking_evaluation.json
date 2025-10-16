@@ -1,0 +1,110 @@
+{
+  "experiment_info": {
+    "title": "Lab 1 - Chunking Strategy Evaluation",
+    "timestamp": 1760478030.250974,
+    "total_strategies": 5
+  },
+  "strategies": {
+    "recursive_standard": {
+      "description": "Standard recursive splitting (1000/200)",
+      "metrics": {
+        "total_chunks": 1357,
+        "avg_chunk_size": 303.4,
+        "size_variance": 96769.5,
+        "code_preservation_rate": 1.0,
+        "table_preservation_rate": 0.96,
+        "size_distribution": {
+          "small_0_500": 1061,
+          "medium_500_1500": 296,
+          "large_1500_plus": 0
+        }
+      }
+    },
+    "recursive_large": {
+      "description": "Large chunks for context (2000/300)",
+      "metrics": {
+        "total_chunks": 1232,
+        "avg_chunk_size": 323.3,
+        "size_variance": 224557.0,
+        "code_preservation_rate": 1.0,
+        "table_preservation_rate": 1.0,
+        "size_distribution": {
+          "small_0_500": 1041,
+          "medium_500_1500": 110,
+          "large_1500_plus": 81
+        }
+      }
+    },
+    "recursive_small": {
+      "description": "Small focused chunks (500/100)",
+      "metrics": {
+        "total_chunks": 1659,
+        "avg_chunk_size": 245.5,
+        "size_variance": 29234.0,
+        "code_preservation_rate": 0.942,
+        "table_preservation_rate": 0.88,
+        "size_distribution": {
+          "small_0_500": 1659,
+          "medium_500_1500": 0,
+          "large_1500_plus": 0
+        }
+      }
+    },
+    "character_code": {
+      "description": "Character splitting for code (800/50)",
+      "metrics": {
+        "total_chunks": 1382,
+        "avg_chunk_size": 277.6,
+        "size_variance": 66769.0,
+        "code_preservation_rate": 1.0,
+        "table_preservation_rate": 0.96,
+        "size_distribution": {
+          "small_0_500": 1082,
+          "medium_500_1500": 300,
+          "large_1500_plus": 0
+        }
+      }
+    },
+    "aurelia_hybrid": {
+      "description": "AURELIA structure-aware hybrid",
+      "metrics": {
+        "total_chunks": 1349,
+        "avg_chunk_size": 298.4,
+        "size_variance": 94990.4,
+        "code_preservation_rate": 1.0,
+        "table_preservation_rate": 1.0,
+        "size_distribution": {
+          "small_0_500": 1068,
+          "medium_500_1500": 280,
+          "large_1500_plus": 1
+        }
+      }
+    }
+  },
+  "recommendations": {
+    "best_code_preservation": {
+      "strategy": "recursive_standard",
+      "rate": 1.0,
+      "reasoning": "Preserves code structure without fragmentation"
+    },
+    "best_table_preservation": {
+      "strategy": "recursive_large",
+      "rate": 1.0,
+      "reasoning": "Maintains table integrity for financial data"
+    },
+    "most_consistent_sizing": {
+      "strategy": "recursive_small",
+      "variance": 29233.973762126763,
+      "reasoning": "Produces most uniform chunk sizes"
+    },
+    "highest_granularity": {
+      "strategy": "recursive_small",
+      "chunks": 1659,
+      "reasoning": "Creates most fine-grained retrieval units"
+    },
+    "recommended_overall": {
+      "strategy": "aurelia_hybrid",
+      "reasoning": "Combines structure preservation with intelligent text splitting"
+    }
+  }
+}

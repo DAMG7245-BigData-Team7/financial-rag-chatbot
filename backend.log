@@ -1,0 +1,93 @@
+/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA/venv/lib/python3.13/site-packages/langchain_pinecone/__init__.py:3: LangChainDeprecationWarning: As of langchain-core 0.3.0, LangChain uses pydantic v2 internally. The langchain_core.pydantic_v1 module was a compatibility shim for pydantic v1, and should no longer be used. Please update the code to import from Pydantic directly.
+
+For example, replace imports like: `from langchain_core.pydantic_v1 import BaseModel`
+with: `from pydantic import BaseModel`
+or the v1 compatibility namespace if you are working in a code base that has not been fully upgraded to pydantic 2 yet. 	from pydantic.v1 import BaseModel
+
+  from langchain_pinecone.vectorstores import Pinecone, PineconeVectorStore
+INFO:     Will watch for changes in these directories: ['/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [57105] using WatchFiles
+🚀 Starting AURELIA Financial QA API Server
+📊 Serving Lab 1 corpus with 2,124+ financial documents
+🔗 API will be available at: http://localhost:8000
+📖 Interactive docs at: http://localhost:8000/docs
+/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA/venv/lib/python3.13/site-packages/langchain_pinecone/__init__.py:3: LangChainDeprecationWarning: As of langchain-core 0.3.0, LangChain uses pydantic v2 internally. The langchain_core.pydantic_v1 module was a compatibility shim for pydantic v1, and should no longer be used. Please update the code to import from Pydantic directly.
+
+For example, replace imports like: `from langchain_core.pydantic_v1 import BaseModel`
+with: `from pydantic import BaseModel`
+or the v1 compatibility namespace if you are working in a code base that has not been fully upgraded to pydantic 2 yet. 	from pydantic.v1 import BaseModel
+
+  from langchain_pinecone.vectorstores import Pinecone, PineconeVectorStore
+INFO:     Started server process [57143]
+INFO:     Waiting for application startup.
+INFO:backend:🚀 Initializing AURELIA Financial QA System...
+INFO:watchfiles.main:3 changes detected
+INFO:watchfiles.main:1 change detected
+INFO:backend:✅ QA System initialized successfully
+INFO:backend:📊 Ready to serve financial questions
+INFO:     Application startup complete.
+🚀 INITIALIZING FINANCIAL QA SYSTEM
+==================================================
+✅ OpenAI embeddings initialized
+✅ Pinecone vector store connected
+✅ ChatGPT initialized
+✅ QA system ready!
+INFO:     127.0.0.1:62494 - "GET /health HTTP/1.1" 200 OK
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:62569 - "POST /ask HTTP/1.1" 200 OK
+INFO:watchfiles.main:1 change detected
+INFO:watchfiles.main:1 change detected
+INFO:watchfiles.main:1 change detected
+INFO:watchfiles.main:1 change detected
+INFO:watchfiles.main:6 changes detected
+INFO:watchfiles.main:41 changes detected
+INFO:watchfiles.main:17 changes detected
+INFO:watchfiles.main:9 changes detected
+INFO:watchfiles.main:2 changes detected
+INFO:watchfiles.main:2 changes detected
+INFO:watchfiles.main:6 changes detected
+INFO:watchfiles.main:3 changes detected
+INFO:watchfiles.main:4 changes detected
+INFO:watchfiles.main:2 changes detected
+INFO:watchfiles.main:22 changes detected
+WARNING:  WatchFiles detected changes in 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/powerbi/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/multion/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/ainetwork/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/jira/__init__.py', 'venv/lib/python3.13/site-packages/starlette/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/gitlab/__init__.py', 'venv/lib/python3.13/site-packages/pydeck/frontend_semver.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/steam/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/zapier/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/sql/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/slack/__init__.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:backend:🔄 Shutting down QA system...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [57143]
+INFO:watchfiles.main:11 changes detected
+WARNING:  WatchFiles detected changes in 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/polygon/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/spark_sql/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/nasa/__init__.py'. Reloading...
+INFO:watchfiles.main:94 changes detected
+WARNING:  WatchFiles detected changes in 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/github/__init__.py', 'venv/lib/python3.13/site-packages/modelscope/metrics/ciderD/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/json/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/tools/github/__init__.py', 'venv/lib/python3.13/site-packages/pydeck/_version.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/gmail/__init__.py', 'venv/lib/python3.13/site-packages/langchain_community/agent_toolkits/office365/__init__.py'. Reloading...
+INFO:watchfiles.main:5 changes detected
+/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA/venv/lib/python3.13/site-packages/langchain_pinecone/__init__.py:3: LangChainDeprecationWarning: As of langchain-core 0.3.0, LangChain uses pydantic v2 internally. The langchain_core.pydantic_v1 module was a compatibility shim for pydantic v1, and should no longer be used. Please update the code to import from Pydantic directly.
+
+For example, replace imports like: `from langchain_core.pydantic_v1 import BaseModel`
+with: `from pydantic import BaseModel`
+or the v1 compatibility namespace if you are working in a code base that has not been fully upgraded to pydantic 2 yet. 	from pydantic.v1 import BaseModel
+
+  from langchain_pinecone.vectorstores import Pinecone, PineconeVectorStore
+INFO:     Started server process [82953]
+INFO:     Waiting for application startup.
+INFO:backend:🚀 Initializing AURELIA Financial QA System...
+INFO:backend:✅ QA System initialized successfully
+INFO:backend:📊 Ready to serve financial questions
+INFO:     Application startup complete.
+INFO:watchfiles.main:16 changes detected
+INFO:watchfiles.main:32 changes detected
+INFO:watchfiles.main:177 changes detected
+INFO:watchfiles.main:11 changes detected
+INFO:watchfiles.main:37 changes detected
+INFO:watchfiles.main:27 changes detected
+INFO:watchfiles.main:16 changes detected
+INFO:watchfiles.main:76 changes detected
+INFO:watchfiles.main:90 changes detected
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:backend:🔄 Shutting down QA system...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [82953]
+INFO:     Stopping reloader process [57105]
