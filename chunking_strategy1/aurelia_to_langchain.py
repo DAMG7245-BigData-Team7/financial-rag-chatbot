@@ -65,24 +65,31 @@ class AureliaToLangChainConverter:
                 file_num = element.get('page', element.get('file_num', 0))
                 section = element.get('section', 'unknown')
 
-                # Create comprehensive metadata
+                # Create comprehensive metadata (Pinecone-compatible: all scalars)
                 metadata = {
                     # Core AURELIA metadata
                     'element_type': element_type,
-                    'file_num': file_num,
-                    'section': section,
-                    'page_number': file_num,  # For compatibility
+                    'type': element_type,  # Add 'type' field for backward compatibility
+                    'page': int(file_num),  # Add 'page' field
+                    'file_num': int(file_num),
+                    'section': str(section),
+                    'page_number': int(file_num),  # For compatibility
 
                     # Priority for retrieval ranking
-                    'priority': self.element_priorities.get(element_type, 5),
+                    'priority': int(self.element_priorities.get(element_type, 5)),
 
                     # Source information
                     'source': f"page_{file_num:03d}",
-                    'document_section': section,
+                    'document_section': str(section),
 
                     # Content characteristics
-                    'content_length': len(content),
-                    'is_structured': element_type in ['code_block', 'table_block', 'equation', 'formula'],
+                    'content_length': int(len(content)),
+                    'is_structured': bool(element_type in ['code_block', 'table_block', 'equation', 'formula']),
+
+                    # NEW: Semantic hierarchy metadata (convert list to string for Pinecone)
+                    'parent_id': str(element.get('parent_id')) if element.get('parent_id') else None,
+                    'depth_level': int(element.get('depth_level')) if element.get('depth_level') is not None else None,
+                    'section_breadcrumb': ' > '.join(element.get('section_path', [])) if element.get('section_path') else None,
 
                     # Element-specific metadata
                     **self._get_element_specific_metadata(element, element_type)
@@ -104,41 +111,45 @@ class AureliaToLangChainConverter:
         return documents
 
     def _get_element_specific_metadata(self, element: Dict[str, Any], element_type: str) -> Dict[str, Any]:
-        """Add element-type specific metadata"""
+        """Add element-type specific metadata (all Pinecone-compatible scalars)"""
         specific_metadata = {}
 
         if element_type == 'code_block':
             content = element.get('content', '')
             specific_metadata.update({
-                'language': self._detect_language(content),
-                'has_function_call': '(' in content and ')' in content,
-                'has_assignment': '=' in content,
-                'line_count': len(content.split('\n'))
+                'language': str(self._detect_language(content)),
+                'has_function_call': bool('(' in content and ')' in content),
+                'has_assignment': bool('=' in content),
+                'line_count': int(len(content.split('\n')))
             })
 
         elif element_type == 'table_block':
             content = element.get('content', '')
             specific_metadata.update({
-                'table_format': 'markdown',
-                'has_headers': content.startswith('|') and '---' in content,
-                'row_count': len([l for l in content.split('\n') if l.strip().startswith('|')])
+                'table_format': str('markdown'),
+                'has_headers': bool(content.startswith('|') and '---' in content),
+                'row_count': int(len([l for l in content.split('\n') if l.strip().startswith('|')]))
             })
 
         elif element_type in ['equation', 'formula']:
             content = element.get('content', '')
             specific_metadata.update({
-                'math_notation': 'latex' if '$' in content else 'text',
-                'has_variables': any(c.islower() for c in content if c.isalpha()),
-                'formula_length': len(content)
+                'math_notation': str('latex' if '$' in content else 'text'),
+                'has_variables': bool(any(c.islower() for c in content if c.isalpha())),
+                'formula_length': int(len(content))
             })
 
         elif element_type == 'text':
             content = element.get('content', '')
             specific_metadata.update({
-                'word_count': len(content.split()),
-                'has_technical_terms': any(term in content.lower() for term in ['matlab', 'function', 'algorithm', 'equation']),
-                'paragraph_count': len([p for p in content.split('\n\n') if p.strip()])
+                'word_count': int(len(content.split())),
+                'has_technical_terms': bool(any(term in content.lower() for term in ['matlab', 'function', 'algorithm', 'equation'])),
+                'paragraph_count': int(len([p for p in content.split('\n\n') if p.strip()]))
             })
+
+        # Add heading level if present
+        if element_type == 'heading' and 'level' in element:
+            specific_metadata['heading_level'] = int(element['level'])
 
         return specific_metadata
 
@@ -212,12 +223,22 @@ class AureliaToLangChainConverter:
 
 def main():
     """Demo the AURELIA to LangChain conversion"""
+    import sys
+    import pickle
+
     converter = AureliaToLangChainConverter()
 
-    # Convert the enhanced output
-    jsonl_path = "/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA/enhanced_output_v11_sequential/fintbx_100_pages_enhanced.jsonl"
+    # Convert the enhanced output with semantic hierarchy
+    jsonl_path = "/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA/Data/chunked_semantic_test/parsed_enhanced.jsonl"
+    output_pkl = "/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA/Data/chunked_semantic_test/langchain_documents.pkl"
 
-    print("Loading AURELIA JSONL output...")
+    # Allow command-line override
+    if len(sys.argv) > 1:
+        jsonl_path = sys.argv[1]
+    if len(sys.argv) > 2:
+        output_pkl = sys.argv[2]
+
+    print(f"Loading AURELIA JSONL output from: {jsonl_path}")
     aurelia_elements = converter.load_aurelia_jsonl(jsonl_path)
 
     if not aurelia_elements:
@@ -255,8 +276,44 @@ def main():
         print(f"\nDocument {i+1}:")
         print(f"Type: {doc.metadata['element_type']}")
         print(f"Page: {doc.metadata['file_num']}")
+        if doc.metadata.get('section_breadcrumb'):
+            print(f"Section: {doc.metadata['section_breadcrumb']}")
+        if doc.metadata.get('parent_id'):
+            print(f"Parent: {doc.metadata['parent_id']}")
         print(f"Content: {doc.page_content[:100]}...")
         print(f"Metadata keys: {list(doc.metadata.keys())}")
+
+    # NEW: Show hierarchy statistics
+    print("\n=== HIERARCHY STATISTICS ===")
+    docs_with_hierarchy = sum(1 for doc in documents if doc.metadata.get('parent_id'))
+    print(f"Documents with parent relationships: {docs_with_hierarchy} ({docs_with_hierarchy/len(documents)*100:.1f}%)")
+
+    depth_counts = {}
+    for doc in documents:
+        depth = doc.metadata.get('depth_level', 0)
+        if depth is None:
+            depth = 0
+        depth_counts[depth] = depth_counts.get(depth, 0) + 1
+
+    print(f"\nDepth distribution:")
+    for depth in sorted(depth_counts.keys())[:5]:
+        print(f"  Level {depth}: {depth_counts[depth]} documents")
+
+    # Save documents to pickle file
+    print(f"\n=== SAVING DOCUMENTS ===")
+    print(f"Saving to: {output_pkl}")
+    with open(output_pkl, 'wb') as f:
+        pickle.dump(documents, f)
+    print(f"✓ Saved {len(documents)} documents to {output_pkl}")
+
+    # Save summary statistics
+    summary_path = output_pkl.replace('.pkl', '_summary.json')
+    import json
+    with open(summary_path, 'w') as f:
+        # Convert sets to lists for JSON serialization
+        stats_json = {k: list(v) if isinstance(v, set) else v for k, v in stats.items()}
+        json.dump(stats_json, f, indent=2)
+    print(f"✓ Saved summary to {summary_path}")
 
 if __name__ == "__main__":
     main()

@@ -53,6 +53,12 @@ class Element:
     caption: Optional[str] = None
     detection_model: Optional[str] = None
 
+    # NEW: Semantic hierarchy fields for RAG
+    parent_id: Optional[str] = None
+    section_path: Optional[List[str]] = None
+    depth_level: Optional[int] = None
+    merged_element_ids: Optional[List[str]] = None
+
     def to_jsonl(self) -> str:
         """Convert to JSONL format"""
         data = asdict(self)
@@ -78,6 +84,10 @@ class EnhancedMarkdownParser:
         self.extracted_equations = set()
         self.extracted_formulas = set()
 
+        # NEW: Track semantic hierarchy for RAG
+        self.heading_stack = []  # Stack of (level, title, element_id)
+        self.current_section_path = []  # Full path like ["Chapter 1", "Getting Started"]
+
         # Statistics
         self.stats = {
             'tables': 0,
@@ -87,10 +97,33 @@ class EnhancedMarkdownParser:
             'equations': 0,
             'headings': 0,
             'lists': 0,
-            'text': 0
+            'text': 0,
+            'merged_code_blocks': 0
         }
 
-        logger.info("✅ Enhanced AURELIA Parser initialized for RAG pipeline")
+        logger.info("✅ Enhanced AURELIA Parser initialized for RAG pipeline with semantic hierarchy")
+
+    def _split_into_pages(self, content: str) -> List[str]:
+        """Split content into pages based on --- separators"""
+        # Split by horizontal rules (---)
+        pages = []
+        current_page = []
+
+        for line in content.split('\n'):
+            # Check if this is a page separator
+            if line.strip() == '---':
+                # Save current page if it has content
+                if current_page:
+                    pages.append('\n'.join(current_page))
+                    current_page = []
+            else:
+                current_page.append(line)
+
+        # Don't forget the last page
+        if current_page:
+            pages.append('\n'.join(current_page))
+
+        return pages if pages else [content]
 
     def extract(self):
         """Main extraction process with advanced capabilities"""
@@ -119,11 +152,15 @@ class EnhancedMarkdownParser:
                     continue
 
                 if content.strip():
-                    # Add basic text element
-                    self._add_basic_text_element(content, file_idx, md_file.name)
+                    # Split content by page separators (---)
+                    pages = self._split_into_pages(content)
+                    logger.info(f"Found {len(pages)} pages in {md_file.name}")
 
-                    # Run advanced extraction on this file's content
-                    self._run_advanced_extraction_for_file(content, file_idx)
+                    # Process each page separately
+                    for page_num, page_content in enumerate(pages, start=1):
+                        if page_content.strip():
+                            # Run advanced extraction on this page's content
+                            self._run_advanced_extraction_for_file(page_content, page_num)
 
             logger.info(f"📄 Processed {len(md_files)} files")
 
@@ -152,21 +189,6 @@ class EnhancedMarkdownParser:
         except Exception as e:
             logger.error(f"Extraction failed: {e}")
             raise
-
-    def _add_basic_text_element(self, text: str, file_num: int, file_name: str = None):
-        """Add basic text element"""
-        self.element_counter += 1
-        section_name = self._extract_section_name(text, file_name)
-        elem = Element(
-            page=file_num,
-            element_id=f"elem_{self.element_counter:04d}",
-            type='text',
-            content=text.strip(),
-            section=section_name,
-            order=self.element_counter
-        )
-        self.elements.append(elem)
-        self.stats['text'] += 1
 
     def _run_advanced_extraction_for_file(self, page_text: str, file_num: int):
         """Run sequential extraction preserving reading order"""
@@ -209,8 +231,8 @@ class EnhancedMarkdownParser:
                 i += code_result['lines_consumed']
                 element_extracted = True
 
-            # 2. Try to extract table starting at this line
-            elif self._is_table_start(line):
+            # 2. Try to extract table starting at this line (markdown or HTML)
+            elif self._is_table_start(line) or self._is_html_table_start(line):
                 table_result = self._try_extract_table_at_line(lines, i)
                 if table_result:
                     # Flush text buffer first
@@ -244,7 +266,7 @@ class EnhancedMarkdownParser:
         self._flush_text_buffer(current_text_buffer, file_num, base_section)
 
     def _flush_text_buffer(self, text_buffer: List[str], file_num: int, base_section: str):
-        """Flush accumulated text lines as a text element"""
+        """Flush accumulated text lines as a text element with hierarchy"""
         if not text_buffer:
             return
 
@@ -252,41 +274,98 @@ class EnhancedMarkdownParser:
         text_content = '\n'.join(text_buffer).strip()
 
         # Only create text element if there's meaningful content
-        if len(text_content) > 20:  # Minimum threshold
+        # Check if it's mostly text (not empty lines or short fragments)
+        meaningful_lines = [line for line in text_content.split('\n') if len(line.strip()) > 10]
+
+        if len(text_content) > 30 and len(meaningful_lines) > 0:  # Minimum threshold
+            # Determine element type based on content
+            element_type = 'text'
+            heading_level = None
+
+            # Check if this is a heading
+            first_line = text_content.split('\n')[0].strip()
+            if first_line.startswith('#'):
+                element_type = 'heading'
+                heading_level = self._get_heading_level(first_line)
+                self.stats['headings'] = self.stats.get('headings', 0) + 1
+            # Check if this is a list
+            elif any(line.strip().startswith(('-', '*', '1.', '2.', '3.')) for line in text_content.split('\n')):
+                element_type = 'list'
+                self.stats['lists'] = self.stats.get('lists', 0) + 1
+            else:
+                self.stats['text'] += 1
+
             self.element_counter += 1
+            element_id = f"elem_{self.element_counter:04d}"
+
+            # NEW: Get parent and hierarchy info
+            parent_id = self._get_current_parent_id()
+
             elem = Element(
                 page=file_num,
-                element_id=f"elem_{self.element_counter:04d}",
-                type='text',
+                element_id=element_id,
+                type=element_type,
                 content=text_content,
                 section=base_section,
                 order=self.element_counter,
-                extraction_method='sequential_text_buffer'
+                extraction_method='sequential_text_buffer',
+                level=heading_level,
+                # NEW: Add hierarchy
+                parent_id=parent_id,
+                section_path=self.current_section_path.copy() if self.current_section_path else None,
+                depth_level=len(self.current_section_path)
             )
             self.elements.append(elem)
-            self.stats['text'] += 1
+
+            # NEW: Update hierarchy if this is a heading
+            if element_type == 'heading' and heading_level:
+                self._update_heading_hierarchy(heading_level, first_line, element_id)
 
     def _try_extract_code_at_line(self, lines: List[str], start_idx: int) -> Dict:
-        """Try to extract code starting at the given line"""
+        """Try to extract code starting at the given line - MERGES FRAGMENTS"""
         line = lines[start_idx].strip()
+
+        # Check for code fence start
+        if line.startswith('```'):
+            return self._extract_fenced_code_block(lines, start_idx)
 
         # Check for various code patterns
         if self._is_code_line(line):
-            # Look ahead to see if this is part of a multi-line code block
+            # NEW: Enhanced lookahead to merge fragmented code blocks
             code_lines = [lines[start_idx]]
             lines_consumed = 1
+            merged_ids = []
 
             # Look for related code lines immediately following
-            for i in range(start_idx + 1, min(start_idx + 10, len(lines))):
-                next_line = lines[i].strip()
-                if (next_line and
-                    (self._is_code_line(next_line) or
-                     self._is_code_continuation(next_line, line))):
+            for i in range(start_idx + 1, min(start_idx + 20, len(lines))):  # Increased from 10 to 20
+                next_line = lines[i]
+                next_stripped = next_line.strip()
+
+                # Check if this is code continuation
+                if next_stripped and (self._is_code_line(next_stripped) or
+                                     self._is_code_continuation(next_stripped, line)):
                     code_lines.append(lines[i])
                     lines_consumed += 1
-                elif not next_line:  # Empty line - might continue
+
+                # Check if next line is closing bracket/array continuation
+                elif next_stripped and self._is_array_continuation(next_stripped):
                     code_lines.append(lines[i])
                     lines_consumed += 1
+                    # If this closes the array, stop here
+                    if ']' in next_stripped:
+                        break
+
+                # Empty line - might be spacing in code
+                elif not next_stripped and lines_consumed < 15:
+                    code_lines.append(lines[i])
+                    lines_consumed += 1
+
+                # Check if we hit code fence closing
+                elif next_stripped.startswith('```'):
+                    code_lines.append(lines[i])
+                    lines_consumed += 1
+                    break
+
                 else:
                     break
 
@@ -294,10 +373,45 @@ class EnhancedMarkdownParser:
                 'code': '\n'.join(code_lines).strip(),
                 'lines_consumed': lines_consumed,
                 'language': 'generic',
-                'type': 'sequential_code'
+                'type': 'merged_code_block'
             }
 
         return None
+
+    def _extract_fenced_code_block(self, lines: List[str], start_idx: int) -> Dict:
+        """Extract complete fenced code block (```...```)"""
+        code_lines = [lines[start_idx]]
+        lines_consumed = 1
+        language = 'generic'
+
+        # Extract language from fence
+        fence_line = lines[start_idx].strip()
+        if len(fence_line) > 3:
+            language = fence_line[3:].strip()
+
+        # Find closing fence
+        for i in range(start_idx + 1, min(start_idx + 50, len(lines))):
+            code_lines.append(lines[i])
+            lines_consumed += 1
+            if lines[i].strip().startswith('```'):
+                break
+
+        return {
+            'code': '\n'.join(code_lines).strip(),
+            'lines_consumed': lines_consumed,
+            'language': language if language else 'generic',
+            'type': 'fenced_code_block'
+        }
+
+    def _is_array_continuation(self, line: str) -> bool:
+        """Check if line continues an array/matrix"""
+        # Lines that are just numbers and brackets
+        if re.match(r'^\s*[\d\s.\-\+]+\]', line):
+            return True
+        # Lines with array closing
+        if re.match(r'^\s*\]', line):
+            return True
+        return False
 
     def _is_code_line(self, line: str) -> bool:
         """Check if a line looks like code"""
@@ -307,19 +421,48 @@ class EnhancedMarkdownParser:
         # Skip obvious non-code patterns
         if (line.startswith('#') or
             line.startswith('|') or
-            re.match(r'^(page|chapter|section)\s+\d+', line.lower())):
+            line.startswith('*') or
+            line.startswith('-') or
+            line.startswith('>') or
+            re.match(r'^(page|chapter|section|introduction|description)', line.lower())):
             return False
 
-        # Check for code patterns
-        return (
-            re.search(r'\w+\s*=\s*', line) or           # Assignments
-            re.search(r'\w+\s*\([^)]*\)', line) or      # Function calls
-            re.search(r'\[[^\]]*\]', line) or           # Arrays
-            re.search(r'\d+\.\d+e[+\-]?\d+', line) or   # Scientific notation
-            re.search(r'[+\-*/^]\s*\w+', line) or       # Math operations
-            line.endswith(';') or                        # Statement terminator
-            re.search(r'\w+\.\w+', line)                # Object notation
-        )
+        # Skip date/version patterns (e.g., "January 1999 Third printing Revised for Version...")
+        if re.search(r'^(january|february|march|april|may|june|july|august|september|october|november|december)', line.lower()):
+            return False
+
+        # Skip lines that look like dates with years
+        if re.search(r'\b(19|20)\d{2}\b', line) and any(word in line.lower() for word in ['printing', 'online', 'revised', 'version', 'release']):
+            return False
+
+        # Skip lines that are clearly prose/text
+        # Check if it's a sentence (ends with period, has multiple words, etc.)
+        if (re.search(r'\.\s*$', line) and len(line.split()) > 5):
+            return False
+
+        # Skip lines with common text words
+        text_indicators = ['the', 'this', 'that', 'with', 'from', 'for', 'and', 'or', 'but', 'are', 'is', 'was']
+        line_lower = line.lower()
+        if sum(f' {word} ' in f' {line_lower} ' for word in text_indicators) >= 2:
+            return False
+
+        # Check for strong code patterns (must have at least 2 indicators)
+        code_indicators = 0
+
+        if re.search(r'^\w+\s*=\s*[^=]', line):  # Assignments (not ==)
+            code_indicators += 2
+        if re.search(r'\w+\s*\([^)]*\)\s*;?\s*$', line):  # Function calls
+            code_indicators += 2
+        if re.search(r'\[[^\]]*\]', line) and '=' in line:  # Arrays with assignment
+            code_indicators += 1
+        if re.search(r'\d+\.\d+e[+\-]?\d+', line):  # Scientific notation
+            code_indicators += 2
+        if line.endswith(';'):  # Statement terminator
+            code_indicators += 1
+        if re.search(r'\w+\.\w+\s*\(', line):  # Method calls
+            code_indicators += 1
+
+        return code_indicators >= 2
 
     def _is_code_continuation(self, line: str, prev_line: str) -> bool:
         """Check if line continues a code block"""
@@ -334,34 +477,57 @@ class EnhancedMarkdownParser:
         return False
 
     def _add_code_element(self, code_result: Dict, file_num: int, base_section: str):
-        """Add a code element"""
+        """Add a code element with hierarchy"""
         code_hash = hash(code_result['code'])
 
         if code_hash not in self.extracted_code:
             self.extracted_code.add(code_hash)
             self.element_counter += 1
+            element_id = f"elem_{self.element_counter:04d}"
+
+            # NEW: Get parent and hierarchy info
+            parent_id = self._get_current_parent_id()
 
             elem = Element(
                 page=file_num,
-                element_id=f"elem_{self.element_counter:04d}",
+                element_id=element_id,
                 type='code_block',
                 content=code_result['code'],
                 section=f"{base_section} - Code",
                 order=self.element_counter,
                 language=code_result['language'],
                 code_type=code_result['type'],
-                extraction_method='sequential_extraction'
+                extraction_method='semantic_merge',
+                # NEW: Add hierarchy
+                parent_id=parent_id,
+                section_path=self.current_section_path.copy() if self.current_section_path else None,
+                depth_level=len(self.current_section_path)
             )
             self.elements.append(elem)
             self.stats['code'] += 1
 
+            # Track if this was a merged block
+            if code_result['type'] == 'merged_code_block':
+                self.stats['merged_code_blocks'] += 1
+
     def _is_table_start(self, line: str) -> bool:
-        """Check if line starts a table"""
+        """Check if line starts a markdown table"""
         return '|' in line and len(line.split('|')) >= 3
 
+    def _is_html_table_start(self, line: str) -> bool:
+        """Check if line starts an HTML table"""
+        return '<table>' in line.lower()
+
     def _try_extract_table_at_line(self, lines: List[str], start_idx: int) -> Dict:
-        """Try to extract table starting at the given line"""
-        if not self._is_table_start(lines[start_idx].strip()):
+        """Try to extract table starting at the given line (markdown or HTML)"""
+        line = lines[start_idx].strip()
+
+        # Check for HTML table
+        if self._is_html_table_start(line):
+            return self._extract_html_table(lines, start_idx)
+
+        # Check for markdown table
+        if not self._is_table_start(line):
             return None
 
         table_lines = []
@@ -383,7 +549,43 @@ class EnhancedMarkdownParser:
             return {
                 'content': '\n'.join(table_lines).strip(),
                 'lines_consumed': lines_consumed,
-                'row_count': len([l for l in table_lines if l.strip() and '|' in l])
+                'row_count': len([l for l in table_lines if l.strip() and '|' in l]),
+                'table_format': 'markdown'
+            }
+
+        return None
+
+    def _extract_html_table(self, lines: List[str], start_idx: int) -> Dict:
+        """Extract HTML table content"""
+        table_lines = []
+        lines_consumed = 0
+        in_table = False
+        row_count = 0
+
+        for i in range(start_idx, len(lines)):
+            line = lines[i]
+            table_lines.append(line)
+            lines_consumed += 1
+
+            if '<table>' in line.lower():
+                in_table = True
+
+            if '<tr>' in line.lower() or '<tr ' in line.lower():
+                row_count += 1
+
+            if '</table>' in line.lower():
+                break
+
+            # Safety check to prevent runaway extraction
+            if lines_consumed > 1000:
+                break
+
+        if table_lines:
+            return {
+                'content': '\n'.join(table_lines).strip(),
+                'lines_consumed': lines_consumed,
+                'row_count': row_count,
+                'table_format': 'html'
             }
 
         return None
@@ -396,6 +598,9 @@ class EnhancedMarkdownParser:
             self.extracted_formulas.add(content_hash)
             self.element_counter += 1
 
+            table_format = table_result.get('table_format', 'markdown')
+            table_type = f"{table_format}_table"
+
             elem = Element(
                 page=file_num,
                 element_id=f"elem_{self.element_counter:04d}",
@@ -403,7 +608,7 @@ class EnhancedMarkdownParser:
                 content=table_result['content'],
                 section=f"{base_section} - Tables",
                 order=self.element_counter,
-                table_type='sequential_table',
+                table_type=table_type,
                 row_count=table_result['row_count'],
                 extraction_method='sequential_extraction'
             )
@@ -1129,6 +1334,37 @@ class EnhancedMarkdownParser:
                         'getting started', 'toolbox', 'reference', 'contents']
 
         return any(word in line.lower() for word in heading_words)
+
+    # NEW: Hierarchy management methods for semantic chunking
+    def _get_heading_level(self, heading_text: str) -> int:
+        """Extract heading level from markdown heading"""
+        match = re.match(r'^(#{1,6})\s', heading_text)
+        if match:
+            return len(match.group(1))
+        return 0
+
+    def _get_current_parent_id(self) -> Optional[str]:
+        """Get the ID of the current parent (most recent heading)"""
+        if self.heading_stack:
+            return self.heading_stack[-1][2]  # Return element_id from (level, title, id)
+        return None
+
+    def _update_heading_hierarchy(self, level: int, heading_text: str, element_id: str):
+        """Update the heading stack and section path for hierarchy tracking"""
+        # Clean heading text
+        title = heading_text.lstrip('#').strip()
+
+        # Remove headings at same or deeper level from stack
+        while self.heading_stack and self.heading_stack[-1][0] >= level:
+            self.heading_stack.pop()
+            if self.current_section_path:
+                self.current_section_path.pop()
+
+        # Add new heading to stack
+        self.heading_stack.append((level, title, element_id))
+        self.current_section_path.append(title)
+
+        logger.debug(f"Updated hierarchy: {' > '.join(self.current_section_path)}")
 
     def _save_outputs(self):
         """Save all outputs optimized for RAG pipeline"""

@@ -38,7 +38,7 @@ class FinancialQASystem:
         # Initialize vector store
         try:
             self.vector_store = PineconeVectorStore(
-                index_name="fintbx-3072-lab1",
+                index_name="fintbx-semantic-3072",
                 embedding=self.embeddings,
                 pinecone_api_key=self.pinecone_api_key
             )
@@ -80,13 +80,13 @@ Instructions:
 Answer:"""
         )
 
-        # Create the QA chain
+        # Create the QA chain with improved retrieval
         try:
             self.qa_chain = RetrievalQA.from_chain_type(
                 llm=self.llm,
                 chain_type="stuff",
                 retriever=self.vector_store.as_retriever(
-                    search_kwargs={"k": 5}  # Retrieve top 5 relevant chunks
+                    search_kwargs={"k": 15}  # Retrieve more chunks for re-ranking
                 ),
                 chain_type_kwargs={"prompt": self.prompt_template},
                 return_source_documents=True
@@ -96,6 +96,64 @@ Answer:"""
         except Exception as e:
             print(f"❌ Failed to create QA chain: {e}")
             self.ready = False
+
+    def _rerank_documents(self, documents, query: str, top_k: int = 5):
+        """
+        Re-rank documents based on element type priority and content quality
+        Prioritize actual documentation over reference tables
+        """
+        # Element type scores (higher is better)
+        type_scores = {
+            'text': 5,        # Main documentation text
+            'code_block': 4,  # Code examples
+            'heading': 3,     # Section headings with content
+            'list': 2,        # Bullet points with details
+            'equation': 1,    # Mathematical formulas
+            'table_block': 0  # Reference tables (lowest priority)
+        }
+
+        scored_docs = []
+        for doc in documents:
+            score = 0
+            metadata = doc.metadata
+
+            # Base score from element type
+            element_type = metadata.get('type', metadata.get('element_type', 'text'))
+            score += type_scores.get(element_type, 0) * 10
+
+            # Bonus for longer, more detailed content
+            content_length = len(doc.page_content)
+            if content_length > 200:
+                score += 5
+            elif content_length > 500:
+                score += 10
+            elif content_length > 1000:
+                score += 15
+
+            # Penalty for very short content (likely just references)
+            if content_length < 50:
+                score -= 10
+
+            # Bonus for code blocks with the queried function
+            if element_type == 'code_block' and any(term in doc.page_content.lower() for term in query.lower().split()):
+                score += 20
+
+            # Bonus for text with examples/syntax/usage keywords
+            if element_type == 'text':
+                keywords = ['example', 'syntax', 'usage', 'compute', 'calculate', 'function', 'how to']
+                if any(kw in doc.page_content.lower() for kw in keywords):
+                    score += 15
+
+            # Penalty for reference/index tables
+            section = metadata.get('section', '').lower()
+            if 'introduced' in section or section.startswith('*introduced'):
+                score -= 20
+
+            scored_docs.append((score, doc))
+
+        # Sort by score (descending) and return top_k
+        scored_docs.sort(key=lambda x: x[0], reverse=True)
+        return [doc for score, doc in scored_docs[:top_k]]
 
     def ask_question(self, question: str, element_filter: dict = None):
         """Ask a question and get an answer with sources"""
@@ -130,18 +188,30 @@ Answer:"""
                 source_docs = relevant_docs
 
             else:
-                # Use the full QA chain
-                result = self.qa_chain.invoke({"query": question})
-                answer = result["result"]
-                source_docs = result["source_documents"]
+                # Retrieve more documents for re-ranking
+                print(f"🔍 Retrieving and re-ranking documents...")
+                raw_docs = self.vector_store.similarity_search(question, k=15)
 
-            print(f"💡 Answer:")
+                # Re-rank documents to prioritize quality content
+                source_docs = self._rerank_documents(raw_docs, question, top_k=5)
+                print(f"   ✓ Retrieved {len(raw_docs)} docs, re-ranked to top {len(source_docs)}")
+
+                # Create context from re-ranked docs
+                context = "\n\n".join([doc.page_content for doc in source_docs])
+
+                # Use LLM with improved context
+                response = self.llm.invoke(
+                    self.prompt_template.format(context=context, question=question)
+                )
+                answer = response.content
+
+            print(f"\n💡 Answer:")
             print(answer)
 
-            print(f"\n📚 Sources:")
+            print(f"\n📚 Sources (Re-ranked by Relevance):")
             for i, doc in enumerate(source_docs, 1):
-                element_type = doc.metadata.get('element_type', 'unknown')
-                page = doc.metadata.get('page_number', 'N/A')
+                element_type = doc.metadata.get('type', doc.metadata.get('element_type', 'unknown'))
+                page = doc.metadata.get('page', doc.metadata.get('page_number', 'N/A'))
                 section = doc.metadata.get('section', 'Unknown section')
                 content_preview = doc.page_content[:100].replace('\n', ' ') + "..."
 
