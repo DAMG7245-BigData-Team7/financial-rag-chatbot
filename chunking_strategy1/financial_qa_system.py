@@ -72,10 +72,17 @@ Question: {question}
 Instructions:
 1. Answer based ONLY on the provided context from the Financial Toolbox documentation
 2. If the context contains MATLAB code, explain what it does and how to use it
-3. For mathematical formulas, explain the financial meaning
+3. For mathematical formulas:
+   - Convert LaTeX notation to plain text descriptions
+   - Explain the financial meaning in simple terms
+   - Avoid using raw LaTeX symbols like $$, \\begin{bmatrix}, etc.
+   - Use plain language: "matrix", "equation", "vector" instead of LaTeX
 4. Be precise and cite specific page numbers when available
 5. If the question cannot be answered from the context, say so clearly
 6. Focus on practical financial applications
+7. Format mathematical expressions using plain text with proper spacing
+
+Example: Instead of "$$\\begin{bmatrix}2\\\\3\\end{bmatrix}$$", write "a 2x1 vector [2, 3]"
 
 Answer:"""
         )
