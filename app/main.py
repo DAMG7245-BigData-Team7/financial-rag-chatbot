@@ -65,34 +65,42 @@ async def startup_event():
     """Initialize services on startup"""
     global db, rag_service, instructor_service, wikipedia_service
     
-    logger.info("🚀 Starting AURELIA API...")
+    import sys
+    print("=" * 60, flush=True)
+    print("🚀 AURELIA API STARTING...", flush=True)
+    print("=" * 60, flush=True)
+    print(f"Python version: {sys.version}", flush=True)
     
     try:
-        # Initialize database
+        print("\n📊 Initializing database...", flush=True)
         db = get_database()
-        logger.info("✅ Database connected")
+        print("✅ Database connected", flush=True)
         
-        # Initialize RAG service
+        print("\n🤖 Initializing RAG service...", flush=True)
         rag_service = RAGService(
             pinecone_api_key=os.getenv("PINECONE_API_KEY"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             index_name=os.getenv("PINECONE_INDEX_NAME", "fintbx-hybrid-3072"),
-            use_hybrid=True
+            use_hybrid=False
         )
-        logger.info("✅ RAG service initialized")
+        print("✅ RAG service initialized", flush=True)
         
-        # Initialize instructor service
+        print("\n📝 Initializing instructor service...", flush=True)
         instructor_service = InstructorService()
-        logger.info("✅ Instructor service initialized")
+        print("✅ Instructor initialized", flush=True)
         
-        # Initialize Wikipedia service
+        print("\n🌐 Initializing Wikipedia service...", flush=True)
         wikipedia_service = WikipediaService()
-        logger.info("✅ Wikipedia service initialized")
+        print("✅ Wikipedia initialized", flush=True)
         
-        logger.info("🎉 AURELIA API ready!")
+        print("\n" + "=" * 60, flush=True)
+        print("🎉 AURELIA API READY!", flush=True)
+        print("=" * 60, flush=True)
         
     except Exception as e:
-        logger.error(f"❌ Startup failed: {e}")
+        print(f"\n❌ STARTUP FAILED: {e}", flush=True, file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         raise
 
 

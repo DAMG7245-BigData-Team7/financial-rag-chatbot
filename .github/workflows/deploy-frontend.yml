@@ -73,7 +73,7 @@ jobs:
             --cpu 1 \
             --timeout 300 \
             --service-account aurelia-streamlit-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
-            --update-secrets="FASTAPI_URL=${{ steps.get-backend-url.outputs.BACKEND_URL }}"
+            --set-env-vars="FASTAPI_URL=${{ steps.get-backend-url.outputs.BACKEND_URL }}"
       
       - name: Get Service URL
         id: get-url
