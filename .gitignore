@@ -16,6 +16,7 @@ __pycache__/
 
 # Virtual environment
 venv/
+venv310/
 env/
 ENV/
 # Environment files
@@ -28,6 +29,7 @@ ENV/
 Data/processed/*.pkl
 Data/parsed/*.jsonl
 Data/raw/*.pdf
+Data/
 
 # IDE
 .vscode/
@@ -38,3 +40,12 @@ Data/raw/*.pdf
 # OS
 .DS_Store
 Thumbs.db
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/terraform.tfvars
+terraform/.terraform.lock.hcl
+
+frontend/.streamlit/secrets.toml
