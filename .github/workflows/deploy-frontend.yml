@@ -13,7 +13,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: us-east1
   SERVICE_NAME: aurelia-frontend
-  IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT_ID }}/streamlit-service
+  IMAGE_NAME: us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/aurelia-docker-repo/streamlit-service
   BACKEND_SERVICE: aurelia-api
 
 jobs:
@@ -49,7 +49,7 @@ jobs:
           echo "Backend URL: $BACKEND_URL"
       
       - name: Configure Docker for GCR
-        run: gcloud auth configure-docker
+        run: gcloud auth configure-docker us-east1-docker.pkg.dev
       
       - name: Build Docker image
         run: |
