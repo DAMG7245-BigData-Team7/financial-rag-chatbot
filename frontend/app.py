@@ -18,9 +18,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+import os
 # Get FastAPI URL from environment
-FASTAPI_URL = st.secrets.get("FASTAPI_URL", "http://localhost:8080")
-
+FASTAPI_URL = os.getenv("FASTAPI_URL", "http://localhost:8080")
 # Custom CSS
 st.markdown("""
 <style>
