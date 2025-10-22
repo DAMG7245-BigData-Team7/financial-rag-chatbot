@@ -87,7 +87,7 @@ resource "google_composer_environment" "airflow" {
   }
 }
 
-output "airflow_ui_url" {
+/**output "airflow_ui_url" {
   value       = google_composer_environment.airflow.config[0].airflow_uri
   description = "Airflow web UI URL"
 }
@@ -95,4 +95,4 @@ output "airflow_ui_url" {
 output "airflow_gcs_bucket" {
   value       = google_composer_environment.airflow.config[0].dag_gcs_prefix
   description = "GCS bucket for Airflow DAGs"
-}
+}**/

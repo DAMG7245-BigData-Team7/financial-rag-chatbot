@@ -59,7 +59,7 @@ resource "google_sql_user" "user" {
   instance = google_sql_database_instance.postgres.name
   password = var.db_password
 }
-
+/**
 # Output connection details
 output "db_connection_name" {
   value       = google_sql_database_instance.postgres.connection_name
@@ -75,4 +75,4 @@ output "db_connection_string" {
   value       = "postgresql://${var.db_user}:${var.db_password}@${google_sql_database_instance.postgres.public_ip_address}:5432/${var.db_name}"
   sensitive   = true
   description = "PostgreSQL connection string"
-}
+}*/

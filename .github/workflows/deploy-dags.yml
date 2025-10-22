@@ -1,0 +1,57 @@
+name: Deploy Airflow DAGs
+
+on:
+  push:
+    branches:
+      - sahil
+    paths:
+      - 'dags/**'
+      - '.github/workflows/deploy-dags.yml'
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  COMPOSER_ENV: aurelia-airflow
+  COMPOSER_REGION: us-east1
+
+jobs:
+  deploy:
+    name: Upload DAGs to Cloud Composer
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Get Composer DAG bucket
+        id: get-bucket
+        run: |
+          BUCKET=$(gcloud composer environments describe ${{ env.COMPOSER_ENV }} \
+            --location ${{ env.COMPOSER_REGION }} \
+            --format="get(config.dagGcsPrefix)")
+          echo "DAG_BUCKET=$BUCKET" >> $GITHUB_OUTPUT
+          echo "DAG bucket: $BUCKET"
+      
+      - name: Upload DAG files
+        run: |
+          gsutil -m cp -r dags/*.py ${{ steps.get-bucket.outputs.DAG_BUCKET }}/
+          echo "✅ DAGs uploaded successfully!"
+      
+      - name: List uploaded DAGs
+        run: |
+          echo "Uploaded DAGs:"
+          gsutil ls ${{ steps.get-bucket.outputs.DAG_BUCKET }}/*.py
+      
+      - name: Wait for DAGs to appear in Airflow
+        run: |
+          echo "⏰ Waiting 30 seconds for Airflow to detect new DAGs..."
+          sleep 30
+          echo "✅ Check Airflow UI to verify DAGs appeared"

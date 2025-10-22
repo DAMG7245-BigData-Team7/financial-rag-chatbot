@@ -49,3 +49,7 @@ terraform/terraform.tfvars
 terraform/.terraform.lock.hcl
 
 frontend/.streamlit/secrets.toml
+
+# GCP
+gcp-key.json
+*-key.json

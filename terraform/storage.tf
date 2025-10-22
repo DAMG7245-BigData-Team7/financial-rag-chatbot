@@ -63,7 +63,7 @@ resource "google_storage_bucket" "terraform_state" {
 }
 
 # Output bucket name
-output "data_bucket_name" {
+/**output "data_bucket_name" {
   value       = google_storage_bucket.data_bucket.name
   description = "GCS bucket name for data storage"
 }
@@ -71,4 +71,4 @@ output "data_bucket_name" {
 output "data_bucket_url" {
   value       = google_storage_bucket.data_bucket.url
   description = "GCS bucket URL"
-}
+}**/

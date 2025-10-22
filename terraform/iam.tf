@@ -67,7 +67,7 @@ resource "google_project_iam_member" "composer_service_agent" {
   
   depends_on = [google_project_service.required_apis]
 }
-
+/**
 # Output service account emails
 output "fastapi_service_account" {
   value       = google_service_account.fastapi_sa.email
@@ -77,4 +77,4 @@ output "fastapi_service_account" {
 output "composer_service_account" {
   value       = google_service_account.composer_sa.email
   description = "Composer service account email"
-}
+}**/
