@@ -7,6 +7,29 @@ Features:
 - Configurable search strategies
 """
 
+import sys
+import os
+from pathlib import Path
+from typing import List, Dict, Optional
+from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
+
+# Add parent directory to path to import config
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config import (
+    BM25_ENCODER_PKL,
+    PINECONE_API_KEY,
+    OPENAI_API_KEY,
+    PINECONE_INDEX_NAME,
+    validate_config
+)
+
+# Validate configuration
+validate_config()
+
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_pinecone import PineconeVectorStore
 from langchain.chains import RetrievalQA
@@ -14,8 +37,6 @@ from langchain.prompts import PromptTemplate
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain_community.retrievers import PineconeHybridSearchRetriever
 from pinecone_text.sparse import BM25Encoder
-import sys
-from typing import List, Dict, Optional
 from langchain.schema import Document
 
 class HybridFinancialQASystem:
@@ -42,8 +63,8 @@ class HybridFinancialQASystem:
             bm25_encoder_path: Path to saved BM25 encoder (for hybrid search)
         """
         # API keys
-        self.pinecone_api_key = "pcsk_6sow6P_3XHg3HPsuGRcxHGZUSEB1VcM4D4Eedo4kQGvBMXiSUL5fhWAF4rNtnEL1m7cPtv"
-        self.openai_api_key = "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"
+        self.pinecone_api_key = os.getenv("PINECONE_API_KEY")
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
 
         self.use_hybrid = use_hybrid
         self.use_reranking = use_reranking
@@ -528,12 +549,15 @@ def main():
 
     # OPTION 2: Full hybrid search (requires hybrid index)
     # First run: upload_to_pinecone_hybrid.py
+    bm25_path = str(BM25_ENCODER_PKL)
+    index_name = PINECONE_INDEX_NAME
+
     qa_system = HybridFinancialQASystem(
-        use_hybrid=True,  # Enable hybrid search
+        use_hybrid=True,
         use_reranking=True,
         reranker_type="flashrank",
-        index_name="fintbx-hybrid-3072",  # Hybrid index
-        bm25_encoder_path="../Data/bm25_encoder.pkl"  # Saved BM25 encoder
+        index_name=index_name,
+        bm25_encoder_path=bm25_path
     )
 
     if not qa_system.ready:

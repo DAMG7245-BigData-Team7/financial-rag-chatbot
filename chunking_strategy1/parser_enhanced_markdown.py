@@ -17,6 +17,10 @@ from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass, asdict
 import sys
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config import MARKDOWN_DIR, PARSED_DIR
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -65,7 +69,6 @@ class Element:
         # Remove None values
         data = {k: v for k, v in data.items() if v is not None}
         return json.dumps(data, ensure_ascii=False)
-
 
 class EnhancedMarkdownParser:
     """Single comprehensive Markdown parser with advanced capabilities"""
@@ -379,7 +382,7 @@ class EnhancedMarkdownParser:
         return None
 
     def _extract_fenced_code_block(self, lines: List[str], start_idx: int) -> Dict:
-        """Extract complete fenced code block (```...```)"""
+        """Extract complete fenced code block (...)"""
         code_lines = [lines[start_idx]]
         lines_consumed = 1
         language = 'generic'
@@ -1410,13 +1413,14 @@ class EnhancedMarkdownParser:
             }, f, indent=2)
         logger.info(f"✓ Enhanced statistics saved to {stats_path}")
 
-
 def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Enhanced AURELIA Markdown Parser for RAG Pipeline")
-    parser.add_argument("markdown_dir", help="Path to directory containing markdown files")
-    parser.add_argument("-o", "--output-dir", default="enhanced_output", help="Output directory")
+    parser.add_argument("markdown_dir", nargs='?', default=str(MARKDOWN_DIR), 
+                       help="Path to directory containing markdown files")
+    parser.add_argument("-o", "--output-dir", default=str(PARSED_DIR), 
+                       help="Output directory")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--rag-mode", action="store_true", help="Optimize for RAG chunking")
 
@@ -1445,6 +1449,6 @@ def main():
             traceback.print_exc()
         sys.exit(1)
 
-
 if __name__ == "__main__":
     main()
+

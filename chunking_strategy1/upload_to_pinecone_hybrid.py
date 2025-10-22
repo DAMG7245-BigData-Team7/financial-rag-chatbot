@@ -8,13 +8,35 @@ import os
 import pickle
 import sys
 from pathlib import Path
+from typing import List
+from dotenv import load_dotenv
+from tqdm import tqdm
+
+# Load environment variables first
+load_dotenv()
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config import (
+    LANGCHAIN_PKL, 
+    BM25_ENCODER_PKL,
+    PINECONE_API_KEY,
+    OPENAI_API_KEY,
+    PINECONE_INDEX_NAME,
+    PINECONE_DIMENSION,
+    validate_config
+)
+
+# Validate configuration
+validate_config()
+
 from langchain_openai import OpenAIEmbeddings
 from pinecone import Pinecone, ServerlessSpec
 from pinecone_text.sparse import BM25Encoder
 import time
-from typing import List
 from langchain.schema import Document
-from tqdm import tqdm
+
 
 def prepare_hybrid_vectors(documents: List[Document], bm25_encoder: BM25Encoder):
     """
@@ -55,7 +77,8 @@ def upload_to_pinecone_hybrid(
     openai_api_key: str,
     dimension: int = 3072,  # text-embedding-3-large dimension
     create_new_index: bool = False,
-    save_bm25_encoder: bool = True
+    save_bm25_encoder: bool = True,
+    bm25_save_path: str = None
 ):
     """
     Upload documents to Pinecone with hybrid search support
@@ -136,12 +159,13 @@ def upload_to_pinecone_hybrid(
     texts, sparse_vectors, metadatas, ids = prepare_hybrid_vectors(documents, bm25_encoder)
 
     # Save BM25 encoder for query-time use
+    # Save BM25 encoder for query-time use
     if save_bm25_encoder:
-        encoder_path = Path(documents_pkl_path).parent / "bm25_encoder.pkl"
-        print(f"\n💾 Saving BM25 encoder to: {encoder_path}")
+        encoder_path = Path(bm25_save_path) if bm25_save_path else Path(documents_pkl_path).parent / "bm25_encoder.pkl"
+        print(f"\nSaving BM25 encoder to: {encoder_path}")
         with open(encoder_path, 'wb') as f:
             pickle.dump(bm25_encoder, f)
-        print(f"   ✓ BM25 encoder saved")
+        print(f"    BM25 encoder saved")
         print(f"   Location: {encoder_path}")
         print(f"   Use this path in financial_qa_system_hybrid.py")
 
@@ -234,12 +258,13 @@ def main():
     from pathlib import Path
 
     # Configuration
-    PINECONE_API_KEY = "pcsk_6sow6P_3XHg3HPsuGRcxHGZUSEB1VcM4D4Eedo4kQGvBMXiSUL5fhWAF4rNtnEL1m7cPtv"
-    OPENAI_API_KEY = "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"
+    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
     # Paths
-    documents_pkl = "/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA/Data/langchain_documents.pkl"
-    index_name = "fintbx-hybrid-3072"  # New hybrid index
+    documents_pkl = str(LANGCHAIN_PKL)
+    index_name = PINECONE_INDEX_NAME
+    bm25_path = str(BM25_ENCODER_PKL)
 
     # Allow command-line override
     if len(sys.argv) > 1:
@@ -257,21 +282,20 @@ def main():
     if sys.stdin.isatty():
         create_new = input(f"\nCreate new index '{index_name}'? (yes/no) [no]: ").strip().lower() == 'yes'
     else:
-        # Running non-interactively, default to yes
         create_new = True
-        print(f"\nCreating new index '{index_name}' (non-interactive mode)")
 
     try:
+        # Update the function call to pass bm25_path
         index, bm25_encoder = upload_to_pinecone_hybrid(
             documents_pkl_path=documents_pkl,
             index_name=index_name,
             pinecone_api_key=PINECONE_API_KEY,
             openai_api_key=OPENAI_API_KEY,
-            dimension=3072,
+            dimension=PINECONE_DIMENSION,
             create_new_index=create_new,
-            save_bm25_encoder=True
+            save_bm25_encoder=True,
+            bm25_save_path=bm25_path  # Add this parameter
         )
-
         print(f"\n{'=' * 80}")
         print(f"SUCCESS!")
         print(f"{'=' * 80}")

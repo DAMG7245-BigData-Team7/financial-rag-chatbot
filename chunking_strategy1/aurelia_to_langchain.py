@@ -4,14 +4,23 @@ AURELIA to LangChain Document Converter
 Converts AURELIA JSONL output to LangChain Document format for hybrid RAG pipeline
 """
 
+import sys
+from pathlib import Path
+
+# Add parent directory to path to import config
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config import PARSED_JSONL, LANGCHAIN_PKL, LANGCHAIN_SUMMARY
+
 import json
 import logging
+import pickle
 from typing import List, Dict, Any
-from pathlib import Path
 from langchain.schema import Document
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 class AureliaToLangChainConverter:
     """Convert AURELIA JSONL output to LangChain Documents with rich metadata"""
@@ -221,72 +230,93 @@ class AureliaToLangChainConverter:
 
         return stats
 
+
 def main():
     """Demo the AURELIA to LangChain conversion"""
-    import sys
-    import pickle
-
+    
     converter = AureliaToLangChainConverter()
 
-    # Convert the enhanced output with semantic hierarchy
-    jsonl_path = "/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA/Data/chunked_semantic_test/parsed_enhanced.jsonl"
-    output_pkl = "/Users/sachinshet/Desktop/Projects/Case Study 3/AURELIA/Data/chunked_semantic_test/langchain_documents.pkl"
+    # Use paths from config
+    jsonl_path = str(PARSED_JSONL)
+    output_pkl = str(LANGCHAIN_PKL)
+    summary_path = str(LANGCHAIN_SUMMARY)
 
     # Allow command-line override
     if len(sys.argv) > 1:
         jsonl_path = sys.argv[1]
     if len(sys.argv) > 2:
         output_pkl = sys.argv[2]
+        # Update summary path based on output_pkl
+        summary_path = output_pkl.replace('.pkl', '_summary.json')
 
     print(f"Loading AURELIA JSONL output from: {jsonl_path}")
+    
+    # Check if input file exists
+    if not Path(jsonl_path).exists():
+        print(f"❌ Input file not found: {jsonl_path}")
+        print(f"\nExpected location: {jsonl_path}")
+        print(f"\nPlease run parser_enhanced_markdown.py first to generate the JSONL file.")
+        print(f"\nExample:")
+        print(f"  python chunking_strategy/parser_enhanced_markdown.py")
+        return
+
     aurelia_elements = converter.load_aurelia_jsonl(jsonl_path)
 
     if not aurelia_elements:
-        print("No elements loaded. Please check the JSONL path.")
+        print("❌ No elements loaded. Please check the JSONL path.")
         return
 
-    print(f"Loaded {len(aurelia_elements)} AURELIA elements")
+    print(f"✅ Loaded {len(aurelia_elements)} AURELIA elements")
 
-    print("Converting to LangChain Documents...")
+    print("\n🔄 Converting to LangChain Documents...")
     documents = converter.convert_to_langchain_documents(aurelia_elements)
 
-    print(f"Converted to {len(documents)} LangChain Documents")
+    print(f"✅ Converted to {len(documents)} LangChain Documents")
 
     # Get conversion statistics
     stats = converter.get_conversion_stats(documents)
 
-    print("\n=== CONVERSION STATISTICS ===")
+    print("\n" + "=" * 60)
+    print("CONVERSION STATISTICS")
+    print("=" * 60)
     print(f"Total Documents: {stats['total_documents']}")
     print(f"Pages Covered: {stats['pages_covered']}")
     print(f"Structured Elements: {stats['structured_elements']}")
     print(f"Average Content Length: {stats['average_content_length']:.1f} chars")
 
-    print("\nElement Type Distribution:")
+    print("\n📊 Element Type Distribution:")
     for element_type, count in sorted(stats['element_type_counts'].items()):
         percentage = (count / stats['total_documents']) * 100
         print(f"  {element_type}: {count} ({percentage:.1f}%)")
 
     if stats['language_counts']:
-        print("\nCode Language Distribution:")
+        print("\n💻 Code Language Distribution:")
         for language, count in sorted(stats['language_counts'].items()):
             print(f"  {language}: {count}")
 
-    print("\n=== SAMPLE DOCUMENTS ===")
+    print("\n" + "=" * 60)
+    print("SAMPLE DOCUMENTS")
+    print("=" * 60)
     for i, doc in enumerate(documents[:3]):
-        print(f"\nDocument {i+1}:")
-        print(f"Type: {doc.metadata['element_type']}")
-        print(f"Page: {doc.metadata['file_num']}")
+        print(f"\n📄 Document {i+1}:")
+        print(f"  Type: {doc.metadata['element_type']}")
+        print(f"  Page: {doc.metadata['file_num']}")
         if doc.metadata.get('section_breadcrumb'):
-            print(f"Section: {doc.metadata['section_breadcrumb']}")
+            print(f"  Section: {doc.metadata['section_breadcrumb']}")
         if doc.metadata.get('parent_id'):
-            print(f"Parent: {doc.metadata['parent_id']}")
-        print(f"Content: {doc.page_content[:100]}...")
-        print(f"Metadata keys: {list(doc.metadata.keys())}")
+            print(f"  Parent: {doc.metadata['parent_id']}")
+        print(f"  Content: {doc.page_content[:100]}...")
+        print(f"  Metadata keys: {list(doc.metadata.keys())}")
 
-    # NEW: Show hierarchy statistics
-    print("\n=== HIERARCHY STATISTICS ===")
+    # Show hierarchy statistics
+    print("\n" + "=" * 60)
+    print("HIERARCHY STATISTICS")
+    print("=" * 60)
     docs_with_hierarchy = sum(1 for doc in documents if doc.metadata.get('parent_id'))
-    print(f"Documents with parent relationships: {docs_with_hierarchy} ({docs_with_hierarchy/len(documents)*100:.1f}%)")
+    if docs_with_hierarchy > 0:
+        print(f"Documents with parent relationships: {docs_with_hierarchy} ({docs_with_hierarchy/len(documents)*100:.1f}%)")
+    else:
+        print("No hierarchical relationships found")
 
     depth_counts = {}
     for doc in documents:
@@ -295,25 +325,42 @@ def main():
             depth = 0
         depth_counts[depth] = depth_counts.get(depth, 0) + 1
 
-    print(f"\nDepth distribution:")
-    for depth in sorted(depth_counts.keys())[:5]:
-        print(f"  Level {depth}: {depth_counts[depth]} documents")
+    if depth_counts:
+        print(f"\n📊 Depth Distribution:")
+        for depth in sorted(depth_counts.keys())[:5]:
+            print(f"  Level {depth}: {depth_counts[depth]} documents")
 
     # Save documents to pickle file
-    print(f"\n=== SAVING DOCUMENTS ===")
-    print(f"Saving to: {output_pkl}")
+    print("\n" + "=" * 60)
+    print("SAVING DOCUMENTS")
+    print("=" * 60)
+    
+    # Ensure output directory exists
+    output_path = Path(output_pkl)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    print(f"📁 Saving to: {output_pkl}")
     with open(output_pkl, 'wb') as f:
         pickle.dump(documents, f)
-    print(f"✓ Saved {len(documents)} documents to {output_pkl}")
+    print(f"✅ Saved {len(documents)} documents")
 
     # Save summary statistics
-    summary_path = output_pkl.replace('.pkl', '_summary.json')
-    import json
+    print(f"📁 Saving summary to: {summary_path}")
     with open(summary_path, 'w') as f:
         # Convert sets to lists for JSON serialization
         stats_json = {k: list(v) if isinstance(v, set) else v for k, v in stats.items()}
         json.dump(stats_json, f, indent=2)
-    print(f"✓ Saved summary to {summary_path}")
+    print(f"✅ Saved summary")
+
+    print("\n" + "=" * 60)
+    print("SUCCESS! 🎉")
+    print("=" * 60)
+    print(f"\n📦 Output files created:")
+    print(f"  1. {output_pkl}")
+    print(f"  2. {summary_path}")
+    print(f"\n🚀 Next step:")
+    print(f"  Run: python chunking_strategy/upload_to_pinecone_hybrid.py")
+
 
 if __name__ == "__main__":
     main()
