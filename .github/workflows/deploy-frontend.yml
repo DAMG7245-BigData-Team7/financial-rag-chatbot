@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - sahil
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:
 
 env:

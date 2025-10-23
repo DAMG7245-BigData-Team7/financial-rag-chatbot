@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - sahil
-    paths:
-      - 'dags/**'
-      - '.github/workflows/deploy-dags.yml'
   workflow_dispatch:
 
 env:
