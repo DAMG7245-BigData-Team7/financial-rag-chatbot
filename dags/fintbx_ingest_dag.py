@@ -137,8 +137,8 @@ parse_documents('{markdown_dir}', '{output_dir}')
 
 
 def upload_to_pinecone(**context):
-    """Download JSONL from GCS and upload to Pinecone"""
-    logger.info("📤 Preparing upload to Pinecone...")
+    """Upload to Pinecone in manageable chunks of 1000 documents"""
+    logger.info("📤 Preparing chunked upload to Pinecone...")
     
     # Get GCS path from Task 3
     jsonl_gcs_path = context['task_instance'].xcom_pull(
@@ -159,23 +159,82 @@ def upload_to_pinecone(**context):
     file_size = Path(local_jsonl).stat().st_size
     logger.info(f"✅ Downloaded JSONL ({file_size:,} bytes)")
     
-    # Import and run the uploader
-    logger.info("🚀 Running AURELIA upload pipeline...")
+    # Import uploader modules
     import sys
     sys.path.insert(0, '/home/airflow/gcs/dags')
+    from aurelia_to_langchain import AureliaToLangChainConverter
+    from upload_to_pinecone_hybrid import upload_to_pinecone_hybrid
+    import pickle
     
-    from utils.uploader import upload_documents
+    # Convert JSONL to documents ONCE
+    logger.info("🔄 Converting JSONL to LangChain Documents...")
+    converter = AureliaToLangChainConverter()
+    aurelia_elements = converter.load_aurelia_jsonl(local_jsonl)
+    all_documents = converter.convert_to_langchain_documents(aurelia_elements)
     
-    # This will convert JSONL → LangChain docs → Upload to Pinecone
-    index = upload_documents(jsonl_path=local_jsonl)
+    logger.info(f"✅ Total documents: {len(all_documents)}")
     
-    # Verify final count
-    stats = index.describe_index_stats()
+    # Process in chunks of 1000
+    chunk_size = 1000
+    total_chunks = (len(all_documents) + chunk_size - 1) // chunk_size
     
-    logger.info(f"\n📊 Final Pinecone Stats:")
-    logger.info(f"   Total vectors: {stats.total_vector_count:,}")
-    logger.info(f"   Dimension: {stats.dimension}")
-    logger.info("✅ Upload complete!")
+    logger.info(f"📦 Will process {total_chunks} chunks of {chunk_size} documents each")
+    
+    for chunk_idx in range(0, len(all_documents), chunk_size):
+        chunk_num = (chunk_idx // chunk_size) + 1
+        chunk_docs = all_documents[chunk_idx:chunk_idx + chunk_size]
+        
+        logger.info(f"\n{'='*60}")
+        logger.info(f"📦 Processing chunk {chunk_num}/{total_chunks}: {len(chunk_docs)} documents")
+        logger.info(f"{'='*60}")
+        
+        # Save chunk to temporary pickle
+        temp_pkl = f"/tmp/chunk_{chunk_idx}.pkl"
+        with open(temp_pkl, 'wb') as f:
+            pickle.dump(chunk_docs, f)
+        
+        logger.info(f"💾 Saved chunk to: {temp_pkl}")
+        
+        # Upload this chunk
+        try:
+            index, _ = upload_to_pinecone_hybrid(
+                documents_pkl_path=temp_pkl,
+                index_name=os.getenv("PINECONE_INDEX_NAME", "fintbx-hybrid-3072"),
+                pinecone_api_key=os.getenv("PINECONE_API_KEY"),
+                openai_api_key=os.getenv("OPENAI_API_KEY"),
+                dimension=3072,
+                create_new_index=False,
+                save_bm25_encoder=(chunk_idx == 0),  # Only save encoder on first chunk
+                bm25_save_path="/tmp/bm25_encoder.pkl"
+            )
+            
+            # Cleanup chunk file
+            Path(temp_pkl).unlink()
+            
+            # Verify progress
+            stats = index.describe_index_stats()
+            logger.info(f"✅ Chunk {chunk_num}/{total_chunks} uploaded!")
+            logger.info(f"📊 Total vectors now in Pinecone: {stats.total_vector_count:,}")
+            
+        except Exception as e:
+            logger.error(f"❌ Chunk {chunk_num} failed: {e}")
+            # Cleanup and re-raise
+            Path(temp_pkl).unlink(missing_ok=True)
+            raise
+    
+    # Final verification
+    from pinecone import Pinecone
+    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+    index = pc.Index(os.getenv("PINECONE_INDEX_NAME", "fintbx-hybrid-3072"))
+    final_stats = index.describe_index_stats()
+    
+    logger.info(f"\n{'='*60}")
+    logger.info(f"✅ ALL CHUNKS UPLOADED SUCCESSFULLY!")
+    logger.info(f"{'='*60}")
+    logger.info(f"📊 Final Statistics:")
+    logger.info(f"   Total vectors: {final_stats.total_vector_count:,}")
+    logger.info(f"   Dimension: {final_stats.dimension}")
+    logger.info(f"   Documents processed: {len(all_documents)}")
 
 
 def upload_artifacts_to_gcs(**context):
