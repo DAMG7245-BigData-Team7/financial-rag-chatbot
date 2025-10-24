@@ -1,0 +1,150 @@
+{
+  "timestamp": "2025-10-24T11:45:44.479035",
+  "api_url": "https://aurelia-api-uxds3rw7za-ue.a.run.app",
+  "quality_metrics": {
+    "individual_results": [
+      {
+        "concept": "Duration",
+        "completeness": 100.0,
+        "citation_fidelity": 40.0,
+        "accuracy": 100.0,
+        "source": "fintbx",
+        "cached": true,
+        "latency_ms": 135.6580830179155
+      },
+      {
+        "concept": "Black-Scholes Model",
+        "completeness": 90.9090909090909,
+        "citation_fidelity": 40.0,
+        "accuracy": 100.0,
+        "source": "fintbx",
+        "cached": true,
+        "latency_ms": 144.53566609881818
+      },
+      {
+        "concept": "Internal Rate of Return",
+        "completeness": 100.0,
+        "citation_fidelity": 40.0,
+        "accuracy": 100.0,
+        "source": "fintbx",
+        "cached": true,
+        "latency_ms": 129.02366695925593
+      },
+      {
+        "concept": "Sharpe Ratio",
+        "completeness": 100.0,
+        "citation_fidelity": 40.0,
+        "accuracy": 100.0,
+        "source": "fintbx",
+        "cached": true,
+        "latency_ms": 133.74374993145466
+      },
+      {
+        "concept": "Bond Convexity",
+        "completeness": 90.9090909090909,
+        "citation_fidelity": 40.0,
+        "accuracy": 100.0,
+        "source": "fintbx",
+        "cached": true,
+        "latency_ms": 137.4125408474356
+      },
+      {
+        "concept": "Modified Duration",
+        "completeness": 90.9090909090909,
+        "citation_fidelity": 40.0,
+        "accuracy": 100.0,
+        "source": "fintbx",
+        "cached": true,
+        "latency_ms": 131.03525014594197
+      },
+      {
+        "concept": "Yield Curve",
+        "completeness": 100.0,
+        "citation_fidelity": 40.0,
+        "accuracy": 100.0,
+        "source": "fintbx",
+        "cached": true,
+        "latency_ms": 161.99533292092383
+      },
+      {
+        "concept": "Option Greeks",
+        "completeness": 100.0,
+        "citation_fidelity": 40.0,
+        "accuracy": 100.0,
+        "source": "fintbx",
+        "cached": true,
+        "latency_ms": 130.9711670037359
+      }
+    ],
+    "averages": {
+      "completeness": 96.5909090909091,
+      "citation_fidelity": 40.0,
+      "accuracy": 100.0
+    }
+  },
+  "performance_metrics": {
+    "uncached": {
+      "results": [
+        {
+          "concept": "Sharpe Ratio",
+          "latency_ms": 8619.189416989684
+        },
+        {
+          "concept": "Convexity",
+          "latency_ms": 6130.623207893223
+        },
+        {
+          "concept": "Yield Curve",
+          "latency_ms": 10738.805208122358
+        }
+      ],
+      "average_latency_ms": 8496.205944335088
+    },
+    "cached": {
+      "results": [
+        {
+          "concept": "Sharpe Ratio",
+          "latency_ms": 142.30759729010364,
+          "cached": true
+        },
+        {
+          "concept": "Convexity",
+          "latency_ms": 138.89676402322948,
+          "cached": true
+        },
+        {
+          "concept": "Yield Curve",
+          "latency_ms": 135.6438745278865,
+          "cached": true
+        }
+      ],
+      "average_latency_ms": 138.9494119470732
+    },
+    "speedup": 61.1460374339069
+  },
+  "wikipedia_fallback": {
+    "results": [
+      {
+        "concept": "Cryptocurrency",
+        "source": "wikipedia",
+        "success": true,
+        "latency_ms": 125.46458397991955
+      },
+      {
+        "concept": "Hedge Fund",
+        "source": "fintbx",
+        "success": false,
+        "latency_ms": 7881.116333184764
+      }
+    ]
+  },
+  "cost_analysis": {
+    "total_queries": 20,
+    "uncached_queries": 11,
+    "cached_queries": 9,
+    "estimated_cost_usd": 0.011,
+    "cost_per_uncached_query": 0.001,
+    "cost_per_cached_query": 0.0,
+    "note": "Rough estimates - actual costs may vary"
+  }
+}
