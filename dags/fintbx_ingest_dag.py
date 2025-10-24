@@ -234,6 +234,7 @@ with DAG(
         task_id='upload_to_pinecone',
         python_callable=upload_to_pinecone,
         provide_context=True,
+        execution_timeout=timedelta(hours=2),
     )
     
     artifacts_task = PythonOperator(
