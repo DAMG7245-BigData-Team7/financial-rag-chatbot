@@ -168,7 +168,6 @@ def upload_to_pinecone_hybrid(
     texts, sparse_vectors, metadatas, ids = prepare_hybrid_vectors(documents, bm25_encoder)
 
     # Save BM25 encoder for query-time use
-    # Save BM25 encoder for query-time use
     if save_bm25_encoder:
         encoder_path = Path(bm25_save_path) if bm25_save_path else Path(documents_pkl_path).parent / "bm25_encoder.pkl"
         print(f"\nSaving BM25 encoder to: {encoder_path}")
@@ -178,18 +177,36 @@ def upload_to_pinecone_hybrid(
         print(f"   Location: {encoder_path}")
         print(f"   Use this path in financial_qa_system_hybrid.py")
 
-    # Generate dense embeddings
-    print(f"\n🔢 Generating dense embeddings...")
+    # Generate dense embeddings with memory management
+    print(f"\n🔢 Generating dense embeddings with memory management...")
     print(f"   This may take several minutes for {len(texts)} documents...")
 
-    # Process in batches
-    batch_size = 100
+    batch_size = 25  # Reduced from 100 to 25 for better memory management
     dense_vectors = []
+
+    import gc
 
     for i in tqdm(range(0, len(texts), batch_size), desc="Embedding"):
         batch_texts = texts[i:i + batch_size]
-        batch_embeddings = embeddings.embed_documents(batch_texts)
-        dense_vectors.extend(batch_embeddings)
+        
+        try:
+            # Generate embeddings for this batch
+            batch_embeddings = embeddings.embed_documents(batch_texts)
+            dense_vectors.extend(batch_embeddings)
+            
+            # Aggressive memory cleanup every 10 batches (~250 documents)
+            if i > 0 and i % (batch_size * 10) == 0:
+                gc.collect()  # Force garbage collection
+                print(f"\n🧹 Memory cleanup at {len(dense_vectors)}/{len(texts)} vectors...")
+                time.sleep(2)
+            
+            # Small delay to prevent overwhelming the worker
+            time.sleep(0.5)
+            
+        except Exception as e:
+            print(f"\n❌ Failed at batch {i//batch_size + 1}: {e}")
+            print(f"   Processed {len(dense_vectors)}/{len(texts)} vectors before failure")
+            raise
 
     print(f"   ✓ Generated {len(dense_vectors)} dense vectors")
 
