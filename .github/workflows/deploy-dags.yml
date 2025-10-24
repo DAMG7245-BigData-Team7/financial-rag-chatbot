@@ -39,8 +39,11 @@ jobs:
       
       - name: Upload DAG files
         run: |
-          gsutil -m cp -r dags/*.py ${{ steps.get-bucket.outputs.DAG_BUCKET }}/
-          echo "✅ DAGs uploaded successfully!"
+            echo "📤 Uploading DAG files and utilities..."
+            gsutil -m cp dags/*.py ${{ steps.get-bucket.outputs.DAG_BUCKET }}/
+            gsutil -m cp -r dags/utils ${{ steps.get-bucket.outputs.DAG_BUCKET }}/
+            echo "✅ DAGs and utils uploaded successfully!"
+
       
       - name: List uploaded DAGs
         run: |
