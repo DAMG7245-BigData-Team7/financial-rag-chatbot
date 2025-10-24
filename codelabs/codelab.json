@@ -1,0 +1,34 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2025-10-24T14:15:54-04:00",
+  "id": "aurelia-financial-rag-codelab",
+  "duration": 36,
+  "title": "Analytics Account: UA-000000-0",
+  "summary": "AURELIA — Financial RAG Chatbot on GCP (Architecture, Endpoints, Fallbacks, Deployment)",
+  "source": "AURELIA_Codelab_codelabs.md",
+  "theme": "",
+  "status": [
+    "published"
+  ],
+  "category": [
+    "cloud",
+    "gcp",
+    "ai",
+    "rag"
+  ],
+  "tags": [
+    "airflow",
+    "fastapi",
+    "langchain",
+    "openai",
+    "pinecone",
+    "postgres",
+    "streamlit",
+    "terraform"
+  ],
+  "feedback": "https://github.com/your-org/financial-rag-chatbot/issues",
+  "url": "aurelia-financial-rag-codelab"
+}

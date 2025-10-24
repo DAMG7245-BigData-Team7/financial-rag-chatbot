@@ -1,0 +1,260 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Analytics Account: UA-000000-0</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/claat-public/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14" ga4id=""></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  codelab-ga4id=""
+                  id="aurelia-financial-rag-codelab"
+                  title="Analytics Account: UA-000000-0"
+                  environment="web"
+                  feedback-link="https://github.com/your-org/financial-rag-chatbot/issues">
+    
+      <google-codelab-step label="1. What we have build" duration="2">
+        <p>A production‑ready <strong>Financial Concept Note Generator</strong> that:</p>
+<ul>
+<li>Retrieves chunks from a <strong>hybrid Pinecone index</strong> (dense OpenAI embeddings + sparse BM25) and <strong>reranks</strong> (optional).</li>
+<li>Generates <strong>structured concept notes</strong> using <strong>instructor + Pydantic</strong>.</li>
+<li><strong>Caches</strong> notes in <strong>PostgreSQL (Cloud SQL)</strong> to reduce cost/latency.</li>
+<li><strong>Falls back</strong> to <strong>Wikipedia</strong> content if the domain corpus yields low/zero recall.</li>
+<li>Exposes an API via <strong>FastAPI on Cloud Run</strong> and a <strong>Streamlit UI</strong> (also on Cloud Run).</li>
+<li>Schedules ingestion + pre‑seeding via <strong>Airflow (Cloud Composer)</strong>.</li>
+<li>Provisions infra with <strong>Terraform</strong> and CI/CD via <strong>GitHub Actions</strong>.</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="2. Prerequisites" duration="2">
+        <ul>
+<li>Python 3.10+ and Docker</li>
+<li>Accounts/keys: <strong>OpenAI</strong>, <strong>Pinecone</strong></li>
+<li>GCP project with Cloud Run, Cloud SQL, Cloud Composer, IAM, GCS</li>
+<li>Optional: Homebrew (macOS) or Go toolchain for <code>claat</code></li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="3. Repository layout" duration="2">
+        <pre><code>financial-rag-chatbot/
+├─ .github/workflows/        # CI/CD workflows
+├─ app/                      # FastAPI service
+├─ chunking_strategy1/       # Ingestion &amp; chunking
+├─ dags/                     # Airflow DAGs
+├─ evaluation/               # Eval scripts/notebooks
+├─ frontend/                 # Streamlit UI
+├─ scripts/                  # Utility scripts / automation
+├─ terraform/                # GCP infra as code
+├─ .gitignore
+├─ config.py                 # Project config
+└─ requirements.txt
+
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="4. Architecture" duration="3">
+        <pre><code language="language-mermaid" class="language-mermaid">flowchart LR
+    UI[Streamlit UI\n(Cloud Run)] --&gt;|POST /query| API[FastAPI API\n(Cloud Run)]
+    subgraph RAG[Services]
+        API --&gt; RET[RAG Service\n(Pinecone Hybrid)]
+        API --&gt; INS[Instructor Service\n(OpenAI + Pydantic)]
+        API --&gt; DB[(PostgreSQL\nCloud SQL)]
+        RET &lt;--&gt; PC[(Pinecone Index\nDense+Sparse)]
+    end
+
+    INS --&gt; DB
+    API -- cache hit? --&gt; DB
+    API --&gt;|fallback if low recall| WIKI[Wikipedia Service]
+
+    subgraph AIRFLOW[Airflow (Cloud Composer)]
+        ING[Ingest DAG\nfintbx_ingest_dag] --&gt; PC
+        SEED[Seed DAG\nconcept_seed_dag] --&gt;|/query| API
+    end
+
+    subgraph GCP[GCP]
+        CR1[Cloud Run: API]
+        CR2[Cloud Run: UI]
+        SQL[Cloud SQL]
+        CMP[Cloud Composer]
+        GCS[(GCS Buckets)]
+    end
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="5. Endpoint flow" duration="4">
+        <h2 is-upgraded>FastAPI (app/main.py)</h2>
+<ul>
+<li><code>GET /health</code> → service status + dependency checks (Pinecone, Postgres).</li>
+<li><code>POST /query</code> → <strong>Core:</strong> input <code>concept</code> (and optional <code>force_refresh</code>), returns <code>ConceptNote</code>. <ol type="1">
+<li><strong>Cache check</strong> (Postgres): if exists and not <code>force_refresh</code> → <strong>return cached</strong>.</li>
+<li><strong>RAG retrieval</strong>: Hybrid search from Pinecone via <code>RAGService.retrieve_documents(...)</code>.</li>
+<li><strong>Context assembly</strong>: joins top chunks into a context string.</li>
+<li><strong>Structured generation</strong>: <code>InstructorService.generate_note(context, concept)</code> → Pydantic‑validated <code>ConceptNote</code>.</li>
+<li><strong>Persist</strong>: store note JSON + <code>sources_used</code> in Postgres.</li>
+<li>Return response.</li>
+</ol>
+</li>
+<li><code>DELETE /cache/{concept}</code> → remove a cached concept.</li>
+<li><code>GET /cache</code> → list cached concepts.</li>
+<li><code>GET /stats</code> → cache size, hit rate, recent queries.</li>
+</ul>
+<h2 is-upgraded>Streamlit UI (frontend/app.py)</h2>
+<ul>
+<li>Submits to <code>POST {FASTAPI_URL}/query</code>.</li>
+<li>Renders the structured note and shows cached/new status.</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="6. Fallback logic" duration="2">
+        <p><code>wikipedia_service.py</code> is used when:</p>
+<ul>
+<li>Retrieval returns <strong>no chunks</strong> or confidence is insufficient (few distinct sources/short context).</li>
+<li>Fetch a summary (and first paragraphs if needed), truncate to safe limit.</li>
+<li>Generation uses this context; mark provenance with <code>source="wikipedia"</code> and label <code>sources_used</code>.</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="7. Environment &amp; local run" duration="5">
+        <p>Create <code>.env</code> in repo root:</p>
+<pre><code language="language-env" class="language-env">OPENAI_API_KEY=...
+PINECONE_API_KEY=...
+PINECONE_INDEX_NAME=fintbx-hybrid-3072
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/aurelia_db
+# or: sqlite:///./aurelia.db
+</code></pre>
+<p>Install + run:</p>
+<pre><code language="language-bash" class="language-bash"># API
+cd app &amp;&amp; pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8080
+
+# Frontend
+cd ../frontend &amp;&amp; pip install -r requirements.txt
+streamlit run app.py --server.port 8501
+</code></pre>
+<p>Smoke test:</p>
+<pre><code language="language-bash" class="language-bash">curl -X POST http://localhost:8080/query \
+  -H &#34;Content-Type: application/json&#34; \
+  -d &#39;{&#34;concept&#34;: &#34;Discounted Cash Flow&#34;, &#34;force_refresh&#34;: false}&#39;
+</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="8. Ingestion (Hybrid Pinecone)" duration="4">
+        <p>Local helpers:</p>
+<pre><code language="language-bash" class="language-bash">cd chunking_strategy1
+python parser_enhanced_markdown.py
+python aurelia_to_langchain.py
+python upload_to_pinecone_hybrid.py
+</code></pre>
+<p>Airflow (Composer):</p>
+<ul>
+<li><code>dags/fintbx_ingest_dag.py</code> → parse + hybrid upload</li>
+<li><code>dags/concept_seed_dag.py</code> → pre‑warm cache by calling <code>/query</code></li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="9. GCP Deployment (Cloud Run &#43; Cloud SQL &#43; Composer)" duration="7">
+        <ol type="1">
+<li><strong>Build &amp; push images</strong></li>
+</ol>
+<pre><code language="language-bash" class="language-bash">gcloud auth configure-docker
+docker build -t gcr.io/$PROJECT/aurelia-api:latest ./app &amp;&amp; docker push gcr.io/$PROJECT/aurelia-api:latest
+docker build -t gcr.io/$PROJECT/aurelia-ui:latest  ./frontend &amp;&amp; docker push gcr.io/$PROJECT/aurelia-ui:latest
+</code></pre>
+<ol type="1" start="2">
+<li><strong>Terraform</strong></li>
+</ol>
+<pre><code language="language-hcl" class="language-hcl"># terraform/terraform.tfvars
+project_id       = &#34;YOUR_GCP_PROJECT&#34;
+region           = &#34;us-east1&#34;
+db_instance_name = &#34;aurelia-postgres&#34;
+db_user          = &#34;aurelia_user&#34;
+db_password      = &#34;CHANGE_ME&#34;
+fastapi_image    = &#34;gcr.io/YOUR_GCP_PROJECT/aurelia-api:latest&#34;
+frontend_image   = &#34;gcr.io/YOUR_GCP_PROJECT/aurelia-ui:latest&#34;
+app_name         = &#34;aurelia&#34;
+</code></pre>
+<pre><code language="language-bash" class="language-bash">cd terraform
+terraform init
+terraform apply -auto-approve
+</code></pre>
+<ol type="1" start="3">
+<li><strong>Cloud Run ↔ Cloud SQL</strong></li>
+</ol>
+<ul>
+<li>Grant Cloud Run service account <strong>Cloud SQL Client</strong>.</li>
+<li>Use Unix socket URL for <code>DATABASE_URL</code>:</li>
+</ul>
+<pre><code>postgresql+pg8000://aurelia_user:${DB_PASSWORD}@/aurelia_db?host=/cloudsql/${DB_CONN_NAME}
+</code></pre>
+<ol type="1" start="4">
+<li><strong>Composer DAGs</strong></li>
+</ol>
+<ul>
+<li>Sync <code>./dags</code> to Composer&#39;s bucket (or use the GitHub workflow).</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="10. Observability &amp; Ops" duration="2">
+        <ul>
+<li><code>/health</code> checks Pinecone + Postgres.</li>
+<li>Log and track cache hit rate, token usage, and latency.</li>
+<li>Add BigQuery sink or GCS logs for analysis.</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="11. Troubleshooting" duration="3">
+        <ul>
+<li><strong>500 on /query</strong>: verify keys, index name, DB connectivity.</li>
+<li><strong>No RAG context</strong>: ensure hybrid index populated and namespace correct.</li>
+<li><strong>High latency</strong>: warm cache via seed DAG; consider smaller model / disable reranker.</li>
+<li><strong>Composer deps</strong>: add missing PyPI packages to environment config.</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/claat-public/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/prettify.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/codelab-elements.js"></script>
+  <script src="//support.google.com/inapp/api.js"></script>
+
+</body>
+</html>
