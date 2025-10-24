@@ -137,7 +137,7 @@ parse_documents('{markdown_dir}', '{output_dir}')
 
 
 def upload_to_pinecone(**context):
-    """Download JSONL from GCS and verify Pinecone"""
+    """Download JSONL from GCS and upload to Pinecone"""
     logger.info("📤 Preparing upload to Pinecone...")
     
     # Get GCS path from Task 3
@@ -159,21 +159,23 @@ def upload_to_pinecone(**context):
     file_size = Path(local_jsonl).stat().st_size
     logger.info(f"✅ Downloaded JSONL ({file_size:,} bytes)")
     
-    # Verify Pinecone connection (data already uploaded locally)
-    from pinecone import Pinecone
+    # Import and run the uploader
+    logger.info("🚀 Running AURELIA upload pipeline...")
+    import sys
+    sys.path.insert(0, '/home/airflow/gcs/dags')
     
-    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-    index = pc.Index(os.getenv("PINECONE_INDEX_NAME", "fintbx-hybrid-3072"))
+    from utils.uploader import upload_documents
     
+    # This will convert JSONL → LangChain docs → Upload to Pinecone
+    index = upload_documents(jsonl_path=local_jsonl)
+    
+    # Verify final count
     stats = index.describe_index_stats()
     
-    logger.info(f"📊 Pinecone Index:")
-    logger.info(f"   Vectors: {stats.total_vector_count:,}")
+    logger.info(f"\n📊 Final Pinecone Stats:")
+    logger.info(f"   Total vectors: {stats.total_vector_count:,}")
     logger.info(f"   Dimension: {stats.dimension}")
-    logger.info("   ✅ Connection verified")
-    logger.info("   (Note: Data already uploaded locally - skipping re-upload)")
-    
-    logger.info("✅ Upload task complete")
+    logger.info("✅ Upload complete!")
 
 
 def upload_artifacts_to_gcs(**context):
