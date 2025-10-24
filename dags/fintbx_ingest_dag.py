@@ -245,3 +245,4 @@ with DAG(
         bash_command='rm -rf /tmp/fintbx.pdf /tmp/markdown /tmp/parsed /tmp/markdown_enhanced.jsonl',
     )
     
+    download_task >> convert_task >> parse_task >> upload_task >> artifacts_task >> cleanup_task
