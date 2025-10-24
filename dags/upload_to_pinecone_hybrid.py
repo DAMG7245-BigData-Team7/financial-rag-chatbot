@@ -13,23 +13,32 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 
 # Load environment variables first
-load_dotenv()
+# For Airflow - use environment variables and inline paths
+try:
+    load_dotenv()
+except:
+    pass  # load_dotenv not needed in Airflow
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from config import (
-    LANGCHAIN_PKL, 
-    BM25_ENCODER_PKL,
-    PINECONE_API_KEY,
-    OPENAI_API_KEY,
-    PINECONE_INDEX_NAME,
-    PINECONE_DIMENSION,
-    validate_config
-)
-
-# Validate configuration
-validate_config()
+# Try to import from config, fallback to environment variables
+try:
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from config import (
+        LANGCHAIN_PKL, BM25_ENCODER_PKL, PINECONE_API_KEY,
+        OPENAI_API_KEY, PINECONE_INDEX_NAME, PINECONE_DIMENSION
+    )
+    try:
+        from config import validate_config
+        validate_config()
+    except:
+        pass
+except:
+    # Fallback for Airflow environment
+    LANGCHAIN_PKL = Path("/tmp/processed/langchain_documents.pkl")
+    BM25_ENCODER_PKL = Path("/tmp/processed/bm25_encoder.pkl")
+    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "fintbx-hybrid-3072")
+    PINECONE_DIMENSION = 3072
 
 from langchain_openai import OpenAIEmbeddings
 from pinecone import Pinecone, ServerlessSpec
