@@ -200,7 +200,7 @@ def upload_to_pinecone_hybrid(
     index = pc.Index(index_name)
 
     # Prepare vectors for upsert
-    upload_batch_size = 100
+    upload_batch_size = 25
     total_batches = (len(ids) + upload_batch_size - 1) // upload_batch_size
 
     skipped_count = 0
