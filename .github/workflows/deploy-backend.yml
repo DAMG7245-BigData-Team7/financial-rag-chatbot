@@ -66,7 +66,7 @@ jobs:
           echo "FastAPI deployed to: $URL"
       - name: Update Cloud Composer Environment Variable
         run: |
-          gcloud composer environments update aurelia-composer \
+          gcloud composer environments update aurelia-airflow \
           --location us-east1 \
           --update-env-variables FASTAPI_URL=${{ steps.get-url.outputs.SERVICE_URL }}
           echo "✅ Updated FASTAPI_URL in Cloud Composer to: ${{ steps.get-url.outputs.SERVICE_URL }}"    
