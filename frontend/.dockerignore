@@ -11,3 +11,4 @@ venv/
 .streamlit/secrets.toml
 tests/
 .DS_Store
+
