@@ -14,18 +14,37 @@ from aurelia_to_langchain import AureliaToLangChainConverter
 from upload_to_pinecone_hybrid import upload_to_pinecone_hybrid
 
 
-def upload_documents(jsonl_path: str = "/tmp/parsed/parsed_enhanced.jsonl"):
-    """
-    Convert JSONL to LangChain documents and upload to Pinecone
-    
-    Args:
-        jsonl_path: Path to parsed JSONL file
-    """
+def upload_documents(jsonl_path: str = None):
+    """Convert JSONL and upload to Pinecone"""
     import pickle
-    import tempfile
+    from pathlib import Path
     
     print(f"📤 Starting upload pipeline...")
-    print(f"   JSONL input: {jsonl_path}")
+    
+    # Smart JSONL detection
+    if jsonl_path is None:
+        parsed_dir = Path("/tmp/parsed")
+        
+        # List all files for debugging
+        all_files = list(parsed_dir.glob("*"))
+        print(f"   Files in /tmp/parsed: {[f.name for f in all_files]}")
+        
+        # Find JSONL file (try multiple patterns)
+        jsonl_files = (
+            list(parsed_dir.glob("markdown_enhanced.jsonl")) or
+            list(parsed_dir.glob("*_enhanced.jsonl")) or
+            list(parsed_dir.glob("*.jsonl"))
+        )
+        
+        if not jsonl_files:
+            raise FileNotFoundError(
+                f"No JSONL found in {parsed_dir}. "
+                f"Files present: {[f.name for f in all_files]}"
+            )
+        
+        jsonl_path = str(jsonl_files[0])
+    
+    print(f"   ✅ Using JSONL: {jsonl_path}")
     
     # Step 1: Convert JSONL to LangChain Documents
     print("\n🔄 Converting JSONL to LangChain Documents...")
