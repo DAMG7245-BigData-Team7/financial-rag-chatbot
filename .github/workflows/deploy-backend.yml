@@ -64,6 +64,12 @@ jobs:
             --format 'value(status.url)')
           echo "SERVICE_URL=$URL" >> $GITHUB_OUTPUT
           echo "FastAPI deployed to: $URL"
+      - name: Update Cloud Composer Environment Variable
+        run: |
+          gcloud composer environments update aurelia-composer \
+          --location us-east1 \
+          --update-env-variables FASTAPI_URL=${{ steps.get-url.outputs.SERVICE_URL }}
+          echo "✅ Updated FASTAPI_URL in Cloud Composer to: ${{ steps.get-url.outputs.SERVICE_URL }}"    
       
       - name: Test Health Endpoint
         run: |

@@ -43,21 +43,12 @@ default_args = {
 
 def get_fastapi_url():
     """Get FastAPI service URL from Cloud Run"""
-    import subprocess
-    
-    result = subprocess.run(
-        ["gcloud", "run", "services", "describe", "aurelia-api",
-         "--region", "us-east1",
-         "--format", "value(status.url)"],
-        capture_output=True,
-        text=True
-    )
-    
-    url = result.stdout.strip()
+    """Get FastAPI service URL from environment variable"""
+    url = os.getenv('FASTAPI_URL')
     if not url:
-        raise Exception("FastAPI service not found")
-    
+        raise Exception("FASTAPI_URL environment variable not set in Cloud Composer")
     return url
+    
 
 
 def validate_api_connection(**context):
