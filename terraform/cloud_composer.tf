@@ -31,12 +31,14 @@ resource "google_composer_environment" "airflow" {
       env_variables = {
         PINECONE_API_KEY         = var.pinecone_api_key
         OPENAI_API_KEY           = var.openai_api_key
+        PINECONE_INDEX_NAME      = "fintbx-hybrid-3072"  # ← ADD THIS LINE
         AURELIA_GCS_BUCKET       = google_storage_bucket.data_bucket.name
         AURELIA_DB_CONNECTION    = google_sql_database_instance.postgres.connection_name
         AURELIA_DB_USER          = var.db_user
         AURELIA_DB_PASSWORD      = var.db_password
         AURELIA_DB_NAME          = var.db_name
-      }
+        AURELIA_PROJECT_ID              = var.project_id  # ← ADD THIS LINE TOO
+        }
     }
     
     # Workloads configuration

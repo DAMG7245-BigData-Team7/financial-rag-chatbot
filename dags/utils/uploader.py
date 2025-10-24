@@ -1,41 +1,65 @@
 #!/usr/bin/env python3
 """
-Simplified uploader for Airflow DAG
-Uploads documents to Pinecone
+Uploader wrapper that uses the full AURELIA converter and uploader
 """
 
+import sys
 import os
-import pickle
 from pathlib import Path
 
+# Add dags directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-def upload_documents():
+from aurelia_to_langchain import AureliaToLangChainConverter
+from upload_to_pinecone_hybrid import upload_to_pinecone_hybrid
+
+
+def upload_documents(jsonl_path: str = "/tmp/parsed/parsed_enhanced.jsonl"):
     """
-    Upload documents to Pinecone
+    Convert JSONL to LangChain documents and upload to Pinecone
     
-    This is a simplified version for Airflow.
-    In production, this would use your full upload script.
+    Args:
+        jsonl_path: Path to parsed JSONL file
     """
+    import pickle
+    import tempfile
     
-    from langchain_openai import OpenAIEmbeddings
-    from pinecone import Pinecone
+    print(f"📤 Starting upload pipeline...")
+    print(f"   JSONL input: {jsonl_path}")
     
-    # Get credentials
-    pinecone_api_key = os.getenv("PINECONE_API_KEY")
-    openai_api_key = os.getenv("OPENAI_API_KEY")
+    # Step 1: Convert JSONL to LangChain Documents
+    print("\n🔄 Converting JSONL to LangChain Documents...")
+    converter = AureliaToLangChainConverter()
     
-    # Initialize
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-large",
-        api_key=openai_api_key
+    aurelia_elements = converter.load_aurelia_jsonl(jsonl_path)
+    print(f"   Loaded {len(aurelia_elements)} AURELIA elements")
+    
+    documents = converter.convert_to_langchain_documents(aurelia_elements)
+    print(f"   Converted to {len(documents)} LangChain Documents")
+    
+    # Step 2: Save to pickle temporarily
+    temp_pkl = "/tmp/langchain_documents.pkl"
+    with open(temp_pkl, 'wb') as f:
+        pickle.dump(documents, f)
+    print(f"   Saved to temporary pickle: {temp_pkl}")
+    
+    # Step 3: Upload to Pinecone using full uploader
+    print("\n📤 Uploading to Pinecone...")
+    
+    index, bm25_encoder = upload_to_pinecone_hybrid(
+        documents_pkl_path=temp_pkl,
+        index_name=os.getenv("PINECONE_INDEX_NAME", "fintbx-hybrid-3072"),
+        pinecone_api_key=os.getenv("PINECONE_API_KEY"),
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+        dimension=3072,
+        create_new_index=False,  # Assume index exists
+        save_bm25_encoder=True,
+        bm25_save_path="/tmp/bm25_encoder.pkl"
     )
     
-    pc = Pinecone(api_key=pinecone_api_key)
-    index = pc.Index("fintbx-hybrid-3072")
+    print(f"✅ Upload complete using full AURELIA pipeline!")
     
-    # In production, load actual documents and upload
-    # For now, just verify connection
-    stats = index.describe_index_stats()
+    # Cleanup temp pickle
+    Path(temp_pkl).unlink(missing_ok=True)
     
-    print(f"✅ Pinecone connected: {stats.total_vector_count} vectors")
-    print("✅ Upload complete (placeholder)")
+    return index
