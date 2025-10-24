@@ -1,0 +1,18 @@
+# Core dependencies
+langchain
+langchain-openai
+langchain-pinecone
+langchain-community
+pinecone-client
+
+# For hybrid search (new)
+pinecone-text  # BM25Encoder for sparse/keyword search
+
+# For reranking (new)
+flashrank  # Lightweight, fast, CPU-friendly reranker
+
+# Optional reranker (alternative to flashrank)
+# cohere  # High-accuracy reranker (requires COHERE_API_KEY)
+
+# Utility
+python-dotenv  # For managing API keys securely

@@ -1,0 +1,35 @@
+# FastAPI and server
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+
+# Database
+psycopg2-binary>=2.9.10
+sqlalchemy>=2.0.36
+
+# LangChain (let pip resolve compatible versions)
+langchain
+langchain-openai
+langchain-pinecone
+langchain-community
+langchain-core
+
+# Pinecone
+pinecone>=5.0.0
+pinecone-text
+
+# OpenAI
+openai>=1.50.0
+instructor>=1.0.0
+
+# Wikipedia
+wikipedia
+
+# Utilities
+python-dotenv
+requests
+python-multipart
+
+# Google Cloud
+google-cloud-storage

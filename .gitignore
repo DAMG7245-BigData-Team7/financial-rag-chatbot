@@ -1,2 +1,55 @@
 /enhanced_output_v11_sequential
 /fintbx_100_pages
+env/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environment
+venv/
+venv310/
+env/
+ENV/
+# Environment files
+.env
+.env.*# Environment files
+.env
+.env.*
+
+# Data files (too large for git)
+Data/processed/*.pkl
+Data/parsed/*.jsonl
+Data/raw/*.pdf
+Data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/terraform.tfvars
+terraform/.terraform.lock.hcl
+
+frontend/.streamlit/secrets.toml
+
+# GCP
+gcp-key.json
+*-key.json

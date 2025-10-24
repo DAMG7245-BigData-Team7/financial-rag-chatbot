@@ -19,8 +19,13 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import MARKDOWN_DIR, PARSED_DIR
-
+try:
+    from config import MARKDOWN_DIR, PARSED_DIR
+except:
+    # Fallback for Airflow
+    MARKDOWN_DIR = Path("/tmp/markdown")
+    PARSED_DIR = Path("/tmp/parsed")
+    
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,

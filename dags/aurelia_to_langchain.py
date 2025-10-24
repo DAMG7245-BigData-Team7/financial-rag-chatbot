@@ -10,7 +10,13 @@ from pathlib import Path
 # Add parent directory to path to import config
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import PARSED_JSONL, LANGCHAIN_PKL, LANGCHAIN_SUMMARY
+try:
+    from config import PARSED_JSONL, LANGCHAIN_PKL, LANGCHAIN_SUMMARY
+except:
+    # Fallback for Airflow
+    PARSED_JSONL = Path("/tmp/parsed/markdown_files_enhanced.jsonl")
+    LANGCHAIN_PKL = Path("/tmp/processed/langchain_documents.pkl")
+    LANGCHAIN_SUMMARY = Path("/tmp/processed/langchain_documents_summary.json")
 
 import json
 import logging
