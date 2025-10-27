@@ -136,3 +136,5 @@ terraform apply -auto-approve
 - **Cloud SQL auth** → check service account roles; verify socket `DATABASE_URL`.
 - **Composer imports** → add missing PyPI deps to environment.
 
+
+
