@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: aurelia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aurelia
+      POSTGRES_USER: aurelia_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aurelia_user -d aurelia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aurelia-network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: aurelia-backend
+    restart: unless-stopped
+    environment:
+      # OpenAI & Pinecone
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME:-fintbx-hybrid-3072}
+
+      # PostgreSQL (matching database.py expected vars)
+      DB_HOST: postgres
+      DB_NAME: aurelia
+      DB_USER: aurelia_user
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - aurelia-network
+
+  # Streamlit Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: aurelia-frontend
+    restart: unless-stopped
+    environment:
+      FASTAPI_URL: http://backend:8080
+    ports:
+      - "8501:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/_stcore/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - aurelia-network
+
+networks:
+  aurelia-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
