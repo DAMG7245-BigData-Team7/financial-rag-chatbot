@@ -1,4 +1,6 @@
+import Image from "next/image";
 import { Demo } from "@/components/Demo";
+import architecture from "../../public/architecture.png";
 import { site } from "@/lib/site";
 
 const pipeline = [
@@ -28,7 +30,7 @@ const stack = [
   { group: "Backend", items: ["FastAPI", "Pydantic", "Instructor", "LangChain"] },
   { group: "Retrieval", items: ["Pinecone", "OpenAI embeddings", "BM25 (index build)"] },
   { group: "Data", items: ["PostgreSQL", "Airflow DAGs", "PyMuPDF parsing"] },
-  { group: "Infra", items: ["Cloud Run", "Terraform", "GitHub Actions", "Vercel"] },
+  { group: "Infra", items: ["Next.js (static export)", "Docker Compose", "Caddy (HTTPS)", "Ubuntu VPS"] },
 ];
 
 function GitHubIcon() {
@@ -91,6 +93,18 @@ export default function Home() {
               </li>
             ))}
           </ol>
+          <figure className="mt-12">
+            <a href={architecture.src} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-2xl border border-zinc-800 transition hover:border-zinc-600">
+              <Image
+                src={architecture}
+                alt="AURELIA system architecture: answering a question (cache, Pinecone search, GPT-4o-mini) and building the knowledge base (PDF extraction, chunking, embedding, vector index)"
+                sizes="(min-width: 1024px) 976px, 100vw"
+                unoptimized
+                className="h-auto w-full"
+              />
+            </a>
+            <figcaption className="mt-3 text-center text-xs text-zinc-500">System architecture · click to open full size</figcaption>
+          </figure>
         </section>
 
         <section id="stack" className="scroll-mt-8 border-t border-zinc-800/80 py-16">
