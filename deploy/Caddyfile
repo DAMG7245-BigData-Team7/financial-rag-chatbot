@@ -1,0 +1,30 @@
+# Copy to /etc/caddy/Caddyfile on the VPS, then `sudo systemctl reload caddy`.
+# Caddy provisions HTTPS automatically for the hostname. To use your own domain,
+# point its A record at the VPS and replace the hostname below.
+# Other projects get their own blocks in the same file.
+
+sachin.40.160.143.143.sslip.io {
+	encode zstd gzip
+
+	# FastAPI, with the /api prefix stripped.
+	handle_path /api/* {
+		# Admin endpoints (seeding, cache deletion) stay private; the site only
+		# uses /query, /health and /stats.
+		@admin path /seed /cache /cache/*
+		respond @admin 404
+
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	# Static Next.js export.
+	handle {
+		root * /srv/aurelia
+		try_files {path} {path}.html {path}/index.html
+		file_server
+	}
+}
+
+# Old addresses (bare IP, OVH hostname) redirect to the main one.
+http://40.160.143.143, vps-a077addf.vps.ovh.us {
+	redir https://sachin.40.160.143.143.sslip.io{uri} permanent
+}

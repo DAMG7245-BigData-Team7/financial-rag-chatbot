@@ -16,7 +16,18 @@ class WikipediaService:
     def __init__(self):
         """Initialize Wikipedia service"""
         wikipedia.set_lang("en")
+        # Wikipedia rate-limits the library's shared default User-Agent (429).
+        wikipedia.set_user_agent(
+            "AURELIA/1.0 (https://github.com/DAMG7245-BigData-Team7/financial-rag-chatbot)"
+        )
         logger.info("✅ Wikipedia service initialized")
+
+    def _get_page(self, concept: str):
+        """Exact title first; auto_suggest mangles valid titles ("Sharpe" -> "sharp")."""
+        try:
+            return wikipedia.page(concept, auto_suggest=False)
+        except wikipedia.exceptions.PageError:
+            return wikipedia.page(concept, auto_suggest=True)
     
     def fetch_content(self, concept: str, max_chars: int = 5000) -> Optional[str]:
         """
@@ -31,7 +42,7 @@ class WikipediaService:
         """
         try:
             # Search for the page
-            page = wikipedia.page(concept, auto_suggest=True)
+            page = self._get_page(concept)
             
             # Get summary + beginning of content
             content = page.summary
@@ -79,7 +90,7 @@ class WikipediaService:
             True if finance-related, False otherwise
         """
         try:
-            page = wikipedia.page(concept, auto_suggest=True)
+            page = self._get_page(concept)
             
             # Financial keywords
             finance_keywords = [

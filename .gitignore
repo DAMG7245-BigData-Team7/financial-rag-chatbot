@@ -53,3 +53,5 @@ frontend/.streamlit/secrets.toml
 # GCP
 gcp-key.json
 *-key.json
+.venv/
+!.env.example
